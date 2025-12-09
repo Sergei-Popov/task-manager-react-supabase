@@ -147,7 +147,19 @@ function DateTimePicker({
     const hours = String(date.getHours()).padStart(2, "0");
     const minutes = String(date.getMinutes()).padStart(2, "0");
 
-    onChange(`${year}-${month}-${day}T${hours}:${minutes}`);
+    // Получаем смещение часового пояса в формате +HH:MM или -HH:MM
+    const timezoneOffset = -date.getTimezoneOffset();
+    const offsetSign = timezoneOffset >= 0 ? "+" : "-";
+    const offsetHours = String(
+      Math.floor(Math.abs(timezoneOffset) / 60),
+    ).padStart(2, "0");
+    const offsetMinutes = String(Math.abs(timezoneOffset) % 60).padStart(
+      2,
+      "0",
+    );
+    const timezone = `${offsetSign}${offsetHours}:${offsetMinutes}`;
+
+    onChange(`${year}-${month}-${day}T${hours}:${minutes}:00${timezone}`);
   };
 
   const isToday = (date) => {

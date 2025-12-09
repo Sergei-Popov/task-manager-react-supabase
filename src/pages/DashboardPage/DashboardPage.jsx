@@ -948,8 +948,12 @@ function DashboardPage() {
                     >
                       Отмена
                     </button>
-                    <button type="submit" className={styles.submitButton}>
-                      Сохранить изменения
+                    <button
+                      type="submit"
+                      className={styles.submitButton}
+                      disabled={isLoading}
+                    >
+                      {isLoading ? "Сохраняю..." : "Сохранить изменения"}
                     </button>
                   </div>
                 </form>
