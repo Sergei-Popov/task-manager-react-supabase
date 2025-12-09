@@ -742,7 +742,14 @@ function DashboardPage() {
                         🕐 {timeRemaining.text}
                       </span>
                       <span className={styles.taskDate}>
-                        📅 {new Date(task.deadline).toLocaleDateString("ru-RU")}
+                        📅{" "}
+                        {new Date(task.deadline).toLocaleString("ru-RU", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
                       </span>
                     </div>
                   </div>
