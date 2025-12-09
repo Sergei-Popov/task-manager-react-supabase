@@ -202,7 +202,7 @@ function LandingPage() {
         <div className={styles.previewContainer}>
           <div className={styles.previewGlow}></div>
           <img
-            src="/Превью.png"
+            src="/preview.png"
             alt="«Мои задачи» Dashboard Preview"
             className={styles.previewImage}
           />

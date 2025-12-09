@@ -1,0 +1,55 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Глобальное свечение -->
+  <defs>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3" result="blur" />
+      <feColorMatrix result="glowColor" type="matrix"
+        values="0 0 0 0 0.75
+                0 0 0 0 0.35
+                0 0 0 0 1
+                0 0 0 0.8 0"/>
+      <feMerge>
+        <feMergeNode in="glowColor"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Фоновой круг -->
+  <circle cx="32" cy="32" r="22" fill="#1C1B3A"/>
+  <!-- Неоновый обвод -->
+  <circle cx="32" cy="32" r="22"
+          stroke="url(#grad-border)" stroke-width="2" fill="none"/>
+
+  <!-- Градиент для обводки -->
+  <defs>
+    <linearGradient id="grad-border" x1="12" y1="12" x2="52" y2="52" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#5B8CFF"/>
+      <stop offset="50%" stop-color="#A855FF"/>
+      <stop offset="100%" stop-color="#FF7AC4"/>
+    </linearGradient>
+    <linearGradient id="grad-check" x1="20" y1="24" x2="44" y2="40" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#5BFFBF"/>
+      <stop offset="100%" stop-color="#5B8CFF"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Карточка задачи -->
+  <g filter="url(#glow)">
+    <rect x="20" y="22" width="24" height="20" rx="6"
+          fill="#151528" stroke="#2D2B4D" stroke-width="1.2"/>
+
+    <!-- Круг‑чекбокс -->
+    <circle cx="25" cy="32" r="5"
+            fill="none" stroke="#5B8CFF" stroke-width="1.6"/>
+
+    <!-- Галочка -->
+    <path d="M23.5 32.1L24.9 33.6L27.7 30.4"
+          stroke="url(#grad-check)" stroke-width="1.7"
+          stroke-linecap="round" stroke-linejoin="round"/>
+
+    <!-- Линии текста задачи -->
+    <rect x="30" y="29" width="10" height="1.4" rx="0.7" fill="#6F6BB5"/>
+    <rect x="30" y="33" width="7" height="1.4" rx="0.7" fill="#44418A"/>
+  </g>
+</svg>
