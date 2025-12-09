@@ -985,6 +985,7 @@
 
 @media (max-width: 600px) {
   .statsGrid {
+    display: none;
     grid-template-columns: 1fr;
   }
 
