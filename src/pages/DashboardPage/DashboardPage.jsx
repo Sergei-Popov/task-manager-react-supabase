@@ -4,12 +4,45 @@ import SingOutButton from "../../components/SingOutButton/SingOutButton.jsx";
 import DateTimePicker from "../../components/DateTimePicker/DateTimePicker.jsx";
 import supabaseClient from "../../utils/supabaseClient.js";
 
-const CATEGORIES = [
+const DEFAULT_CATEGORIES = [
   { id: "work", name: "Работа", icon: "💼" },
   { id: "personal", name: "Личное", icon: "🏠" },
   { id: "study", name: "Учёба", icon: "📚" },
   { id: "health", name: "Здоровье", icon: "💪" },
   { id: "shopping", name: "Покупки", icon: "🛒" },
+];
+
+const AVAILABLE_ICONS = [
+  "💼",
+  "🏠",
+  "📚",
+  "💪",
+  "🛒",
+  "🎯",
+  "🎨",
+  "🎮",
+  "🎵",
+  "🎬",
+  "✈️",
+  "🚗",
+  "💰",
+  "📱",
+  "💻",
+  "📧",
+  "📞",
+  "🍽️",
+  "🏃",
+  "🎁",
+  "❤️",
+  "⭐",
+  "🔥",
+  "💡",
+  "🎉",
+  "📝",
+  "🔔",
+  "🌟",
+  "🚀",
+  "🏆",
 ];
 
 const COLORS = [
@@ -27,24 +60,59 @@ const COLORS = [
 
 function DashboardPage() {
   const [tasks, setTasks] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [isEditCategoryMode, setIsEditCategoryMode] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
   const [filter, setFilter] = useState("all");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [userEmail, setUserEmail] = useState("");
   const [newTask, setNewTask] = useState({
     text: "",
     deadline: "",
     category: "work",
     color: "#6366f1",
   });
+  const [newCategory, setNewCategory] = useState({
+    name: "",
+    icon: "🎯",
+  });
 
-  // Загрузка задач при монтировании
+  // Загрузка задач и категорий при монтировании
   useEffect(() => {
     fetchTasks();
+    fetchCategories();
   }, []);
+
+  const fetchCategories = async () => {
+    try {
+      const {
+        data: { user },
+      } = await supabaseClient.auth.getUser();
+
+      if (!user) return;
+
+      const { data, error } = await supabaseClient
+        .from("categories")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: true });
+
+      if (error) {
+        console.error("Ошибка загрузки категорий:", error);
+        return;
+      }
+
+      setCategories(data || []);
+    } catch (error) {
+      console.error("Ошибка:", error);
+    }
+  };
 
   const fetchTasks = async () => {
     try {
@@ -57,6 +125,9 @@ function DashboardPage() {
         console.error("Пользователь не авторизован");
         return;
       }
+
+      // Сохраняем email пользователя
+      setUserEmail(user.email || "");
 
       const { data, error } = await supabaseClient
         .from("tasks")
@@ -272,8 +343,140 @@ function DashboardPage() {
     return { text: `${minutes} мин.`, isOverdue: false };
   };
 
+  // Функции для работы с категориями
+  const handleCategoryInputChange = (e) => {
+    const { name, value } = e.target;
+    setNewCategory((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleCategoryIconSelect = (icon) => {
+    setNewCategory((prev) => ({ ...prev, icon }));
+  };
+
+  const handleCreateCategory = async (e) => {
+    e.preventDefault();
+    if (!newCategory.name.trim()) return;
+
+    try {
+      const {
+        data: { user },
+      } = await supabaseClient.auth.getUser();
+
+      if (!user) return;
+
+      const { data, error } = await supabaseClient
+        .from("categories")
+        .insert({
+          user_id: user.id,
+          name: newCategory.name.trim(),
+          icon: newCategory.icon,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Ошибка создания категории:", error);
+        return;
+      }
+
+      setCategories((prev) => [...prev, data]);
+      closeCategoryModal();
+    } catch (error) {
+      console.error("Ошибка:", error);
+    }
+  };
+
+  const handleUpdateCategory = async (e) => {
+    e.preventDefault();
+    if (!newCategory.name.trim() || !selectedCategory) return;
+
+    try {
+      const { data, error } = await supabaseClient
+        .from("categories")
+        .update({
+          name: newCategory.name.trim(),
+          icon: newCategory.icon,
+        })
+        .eq("id", selectedCategory.id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Ошибка обновления категории:", error);
+        return;
+      }
+
+      setCategories((prev) =>
+        prev.map((cat) => (cat.id === selectedCategory.id ? data : cat)),
+      );
+      closeCategoryModal();
+    } catch (error) {
+      console.error("Ошибка:", error);
+    }
+  };
+
+  const handleDeleteCategory = async (categoryId) => {
+    if (
+      !window.confirm(
+        "Удалить эту категорию? Задачи с этой категорией останутся, но будут отображаться без категории.",
+      )
+    ) {
+      return;
+    }
+
+    try {
+      const { error } = await supabaseClient
+        .from("categories")
+        .delete()
+        .eq("id", categoryId);
+
+      if (error) {
+        console.error("Ошибка удаления категории:", error);
+        return;
+      }
+
+      setCategories((prev) => prev.filter((cat) => cat.id !== categoryId));
+
+      // Сбрасываем фильтр, если была выбрана удаляемая категория
+      if (filter === categoryId) {
+        setFilter("all");
+      }
+    } catch (error) {
+      console.error("Ошибка:", error);
+    }
+  };
+
+  const openCreateCategoryModal = () => {
+    setNewCategory({ name: "", icon: "🎯" });
+    setSelectedCategory(null);
+    setIsEditCategoryMode(false);
+    setIsCategoryModalOpen(true);
+  };
+
+  const openEditCategoryModal = (category) => {
+    setSelectedCategory(category);
+    setNewCategory({ name: category.name, icon: category.icon });
+    setIsEditCategoryMode(true);
+    setIsCategoryModalOpen(true);
+  };
+
+  const closeCategoryModal = () => {
+    setIsCategoryModalOpen(false);
+    setIsEditCategoryMode(false);
+    setSelectedCategory(null);
+    setNewCategory({ name: "", icon: "🎯" });
+  };
+
   const getCategoryInfo = (categoryId) => {
-    return CATEGORIES.find((c) => c.id === categoryId) || CATEGORIES[0];
+    // Сначала ищем в пользовательских категориях
+    const userCategory = categories.find((c) => c.id === categoryId);
+    if (userCategory) return userCategory;
+
+    // Затем в дефолтных
+    const defaultCategory = DEFAULT_CATEGORIES.find((c) => c.id === categoryId);
+    if (defaultCategory) return defaultCategory;
+
+    return DEFAULT_CATEGORIES[0];
   };
 
   const stats = {
@@ -349,7 +552,7 @@ function DashboardPage() {
 
         <div className={styles.categoriesSection}>
           <h3 className={styles.sectionTitle}>Категории</h3>
-          {CATEGORIES.map((category) => (
+          {DEFAULT_CATEGORIES.map((category) => (
             <button
               key={category.id}
               className={`${styles.navItem} ${filter === category.id ? styles.active : ""}`}
@@ -362,9 +565,65 @@ function DashboardPage() {
               </span>
             </button>
           ))}
+
+          <div className={styles.divider} />
+          <div className={styles.sectionHeader}>
+            <h3 className={styles.sectionTitle}>Мои категории</h3>
+            <button
+              className={styles.addCategoryButton}
+              onClick={openCreateCategoryModal}
+              title="Добавить категорию"
+            >
+              +
+            </button>
+          </div>
+          {categories.length === 0 ? (
+            <p className={styles.emptyCategories}>
+              Нет пользовательских категорий
+            </p>
+          ) : (
+            categories.map((category) => (
+              <div key={category.id} className={styles.customCategoryItem}>
+                <button
+                  className={`${styles.navItem} ${filter === category.id ? styles.active : ""}`}
+                  onClick={() => setFilter(category.id)}
+                >
+                  <span className={styles.navIcon}>{category.icon}</span>
+                  {category.name}
+                  <span className={styles.badge}>
+                    {tasks.filter((t) => t.category === category.id).length}
+                  </span>
+                </button>
+                <div className={styles.categoryActions}>
+                  <button
+                    className={styles.categoryActionBtn}
+                    onClick={() => openEditCategoryModal(category)}
+                    title="Редактировать"
+                  >
+                    ✏️
+                  </button>
+                  <button
+                    className={styles.categoryActionBtn}
+                    onClick={() => handleDeleteCategory(category.id)}
+                    title="Удалить"
+                  >
+                    🗑️
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
         </div>
 
         <div className={styles.sidebarFooter}>
+          {userEmail && (
+            <div className={styles.userInfo}>
+              <span className={styles.userIcon}>👤</span>
+              <span className={styles.userEmail}>
+                {userEmail.toUpperCase()}
+              </span>
+            </div>
+          )}
           <SingOutButton />
         </div>
       </aside>
@@ -557,7 +816,12 @@ function DashboardPage() {
                     value={newTask.category}
                     onChange={handleInputChange}
                   >
-                    {CATEGORIES.map((cat) => (
+                    {DEFAULT_CATEGORIES.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.icon} {cat.name}
+                      </option>
+                    ))}
+                    {categories.map((cat) => (
                       <option key={cat.id} value={cat.id}>
                         {cat.icon} {cat.name}
                       </option>
@@ -648,7 +912,12 @@ function DashboardPage() {
                       value={newTask.category}
                       onChange={handleInputChange}
                     >
-                      {CATEGORIES.map((cat) => (
+                      {DEFAULT_CATEGORIES.map((cat) => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.icon} {cat.name}
+                        </option>
+                      ))}
+                      {categories.map((cat) => (
                         <option key={cat.id} value={cat.id}>
                           {cat.icon} {cat.name}
                         </option>
@@ -775,6 +1044,86 @@ function DashboardPage() {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Category Modal */}
+      {isCategoryModalOpen && (
+        <div className={styles.modalOverlay} onClick={closeCategoryModal}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h2>
+                {isEditCategoryMode
+                  ? "Редактирование категории"
+                  : "Новая категория"}
+              </h2>
+              <button
+                className={styles.closeButton}
+                onClick={closeCategoryModal}
+              >
+                ✕
+              </button>
+            </div>
+            <div className={styles.modalContent}>
+              <form
+                onSubmit={
+                  isEditCategoryMode
+                    ? handleUpdateCategory
+                    : handleCreateCategory
+                }
+                className={styles.form}
+              >
+                <div className={styles.formGroup}>
+                  <label htmlFor="categoryName">Название категории</label>
+                  <input
+                    id="categoryName"
+                    name="name"
+                    value={newCategory.name}
+                    onChange={handleCategoryInputChange}
+                    placeholder="Введите название категории..."
+                    required
+                  />
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label>Иконка категории</label>
+                  <div className={styles.iconPicker}>
+                    {AVAILABLE_ICONS.map((icon) => (
+                      <button
+                        key={icon}
+                        type="button"
+                        className={`${styles.iconOption} ${newCategory.icon === icon ? styles.selected : ""}`}
+                        onClick={() => handleCategoryIconSelect(icon)}
+                      >
+                        {icon}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className={styles.formActions}>
+                  <button
+                    type="button"
+                    className={styles.cancelButton}
+                    onClick={closeCategoryModal}
+                  >
+                    Отмена
+                  </button>
+                  <button
+                    type="submit"
+                    className={styles.submitButton}
+                    disabled={isLoading}
+                  >
+                    {isLoading
+                      ? "Сохранение..."
+                      : isEditCategoryMode
+                        ? "Сохранить изменения"
+                        : "Создать категорию"}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         </div>
