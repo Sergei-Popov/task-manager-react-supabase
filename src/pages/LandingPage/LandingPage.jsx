@@ -6,28 +6,30 @@ function LandingPage() {
     <div className={styles.landing}>
       {/* Header */}
       <header className={styles.header}>
-        <div className={styles.logo}>
-          <span className={styles.logoIcon}>✓</span>
-          <span className={styles.logoText}>«Мои задачи»</span>
-        </div>
-        <nav className={styles.nav}>
-          <a href="#features" className={styles.navLink}>
-            Возможности
-          </a>
-          <a href="#preview" className={styles.navLink}>
-            Превью
-          </a>
-          <a href="#benefits" className={styles.navLink}>
-            Преимущества
-          </a>
-        </nav>
-        <div className={styles.headerButtons}>
-          <Link to="/login" className={styles.loginButton}>
-            Войти
-          </Link>
-          <Link to="/registration" className={styles.signupButton}>
-            Регистрация
-          </Link>
+        <div className={styles.headerContent}>
+          <div className={styles.logo}>
+            <span className={styles.logoIcon}>✓</span>
+            <span className={styles.logoText}>«Мои задачи»</span>
+          </div>
+          <nav className={styles.nav}>
+            <a href="#features" className={styles.navLink}>
+              Возможности
+            </a>
+            <a href="#preview" className={styles.navLink}>
+              Превью
+            </a>
+            <a href="#benefits" className={styles.navLink}>
+              Преимущества
+            </a>
+          </nav>
+          <div className={styles.headerButtons}>
+            <Link to="/login" className={styles.loginButton}>
+              Войти
+            </Link>
+            <Link to="/registration" className={styles.signupButton}>
+              Регистрация
+            </Link>
+          </div>
         </div>
       </header>
 
