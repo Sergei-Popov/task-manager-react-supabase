@@ -16,6 +16,7 @@ function KanbanColumn({
   getCategoryInfo,
   getTimeRemaining,
   truncateText,
+  tags = [],
 }) {
   const { setNodeRef, isOver } = useDroppable({
     id: status.id,
@@ -53,6 +54,7 @@ function KanbanColumn({
                 onEdit={onEdit}
                 onDelete={onDelete}
                 truncateText={truncateText}
+                tags={tags}
               />
             ))}
           </SortableContext>

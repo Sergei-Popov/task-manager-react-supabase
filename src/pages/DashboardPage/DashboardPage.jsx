@@ -8,6 +8,7 @@ import {
   TaskModal,
   TaskViewModal,
   CategoryModal,
+  TagModal,
   KanbanBoard,
   DEFAULT_CATEGORIES,
   INITIAL_TASK_STATE,
@@ -17,9 +18,11 @@ import {
 function DashboardPage() {
   const [tasks, setTasks] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [tags, setTags] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [isTagModalOpen, setIsTagModalOpen] = useState(false);
   const [isEditCategoryMode, setIsEditCategoryMode] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -29,13 +32,15 @@ function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [userEmail, setUserEmail] = useState("");
   const [viewMode, setViewMode] = useState("list"); // "list" или "kanban"
+  const [searchQuery, setSearchQuery] = useState("");
   const [newTask, setNewTask] = useState(INITIAL_TASK_STATE);
   const [newCategory, setNewCategory] = useState(INITIAL_CATEGORY_STATE);
 
-  // Загрузка задач и категорий при монтировании
+  // Загрузка задач, категорий и тегов при монтировании
   useEffect(() => {
     fetchTasks();
     fetchCategories();
+    fetchTags();
   }, []);
 
   const fetchCategories = async () => {
@@ -63,6 +68,31 @@ function DashboardPage() {
     }
   };
 
+  const fetchTags = async () => {
+    try {
+      const {
+        data: { user },
+      } = await supabaseClient.auth.getUser();
+
+      if (!user) return;
+
+      const { data, error } = await supabaseClient
+        .from("tags")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: true });
+
+      if (error) {
+        console.error("Ошибка загрузки тегов:", error);
+        return;
+      }
+
+      setTags(data || []);
+    } catch (error) {
+      console.error("Ошибка:", error);
+    }
+  };
+
   const fetchTasks = async () => {
     try {
       setIsLoading(true);
@@ -77,9 +107,16 @@ function DashboardPage() {
 
       setUserEmail(user.email || "");
 
+      // Загружаем задачи с подзадачами и тегами
       const { data, error } = await supabaseClient
         .from("tasks")
-        .select("*")
+        .select(
+          `
+          *,
+          subtasks (id, text, is_completed, position),
+          task_tags (tag_id)
+        `,
+        )
         .eq("user_id", user.id)
         .order("deadline", { ascending: true });
 
@@ -112,7 +149,8 @@ function DashboardPage() {
         return;
       }
 
-      const { data, error } = await supabaseClient
+      // Создаём задачу
+      const { data: taskData, error: taskError } = await supabaseClient
         .from("tasks")
         .insert({
           user_id: user.id,
@@ -121,17 +159,69 @@ function DashboardPage() {
           category: newTask.category,
           color: newTask.color,
           status: newTask.status,
+          priority: newTask.priority,
+          is_recurring: newTask.is_recurring,
+          recurrence_type: newTask.is_recurring
+            ? newTask.recurrence_type || "daily"
+            : null,
+          recurrence_interval: newTask.is_recurring
+            ? newTask.recurrence_interval
+            : null,
+          recurrence_end_date: newTask.is_recurring
+            ? newTask.recurrence_end_date
+            : null,
         })
         .select()
         .single();
 
-      if (error) {
-        console.error("Ошибка создания задачи:", error);
+      if (taskError) {
+        console.error("Ошибка создания задачи:", taskError);
         return;
       }
 
+      // Создаём подзадачи
+      if (newTask.subtasks.length > 0) {
+        const subtasksToInsert = newTask.subtasks.map((subtask, index) => ({
+          task_id: taskData.id,
+          text: subtask.text,
+          is_completed: subtask.is_completed,
+          position: index,
+        }));
+
+        const { error: subtasksError } = await supabaseClient
+          .from("subtasks")
+          .insert(subtasksToInsert);
+
+        if (subtasksError) {
+          console.error("Ошибка создания подзадач:", subtasksError);
+        }
+      }
+
+      // Создаём связи с тегами
+      if (newTask.tags.length > 0) {
+        const taskTagsToInsert = newTask.tags.map((tagId) => ({
+          task_id: taskData.id,
+          tag_id: tagId,
+        }));
+
+        const { error: tagsError } = await supabaseClient
+          .from("task_tags")
+          .insert(taskTagsToInsert);
+
+        if (tagsError) {
+          console.error("Ошибка привязки тегов:", tagsError);
+        }
+      }
+
+      // Обновляем список задач
+      const enrichedTask = {
+        ...taskData,
+        subtasks: newTask.subtasks.map((s, i) => ({ ...s, position: i })),
+        task_tags: newTask.tags.map((tagId) => ({ tag_id: tagId })),
+      };
+
       setTasks((prev) =>
-        [...prev, data].sort(
+        [...prev, enrichedTask].sort(
           (a, b) => new Date(a.deadline) - new Date(b.deadline),
         ),
       );
@@ -140,6 +230,7 @@ function DashboardPage() {
       setIsModalOpen(false);
     } catch (error) {
       console.error("Ошибка:", error);
+      setIsLoading(false);
     }
   };
 
@@ -195,6 +286,13 @@ function DashboardPage() {
       category: task.category,
       color: task.color,
       status: task.status,
+      priority: task.priority || "medium",
+      is_recurring: task.is_recurring || false,
+      recurrence_type: task.recurrence_type,
+      recurrence_interval: task.recurrence_interval || 1,
+      recurrence_end_date: task.recurrence_end_date,
+      subtasks: task.subtasks || [],
+      tags: task.task_tags?.map((tt) => tt.tag_id) || [],
     });
     setIsEditMode(true);
     setIsViewModalOpen(true);
@@ -204,7 +302,10 @@ function DashboardPage() {
     e.preventDefault();
     if (!newTask.text.trim() || !newTask.deadline) return;
 
+    setIsLoading(true);
+
     try {
+      // Обновляем основные данные задачи
       const { data, error } = await supabaseClient
         .from("tasks")
         .update({
@@ -213,6 +314,17 @@ function DashboardPage() {
           category: newTask.category,
           color: newTask.color,
           status: newTask.status,
+          priority: newTask.priority,
+          is_recurring: newTask.is_recurring,
+          recurrence_type: newTask.is_recurring
+            ? newTask.recurrence_type
+            : null,
+          recurrence_interval: newTask.is_recurring
+            ? newTask.recurrence_interval
+            : null,
+          recurrence_end_date: newTask.is_recurring
+            ? newTask.recurrence_end_date
+            : null,
         })
         .eq("id", selectedTask.id)
         .select()
@@ -223,13 +335,54 @@ function DashboardPage() {
         return;
       }
 
+      // Обновляем подзадачи: удаляем старые, добавляем новые
+      await supabaseClient
+        .from("subtasks")
+        .delete()
+        .eq("task_id", selectedTask.id);
+
+      if (newTask.subtasks.length > 0) {
+        const subtasksToInsert = newTask.subtasks.map((subtask, index) => ({
+          task_id: selectedTask.id,
+          text: subtask.text,
+          is_completed: subtask.is_completed || false,
+          position: index,
+        }));
+
+        await supabaseClient.from("subtasks").insert(subtasksToInsert);
+      }
+
+      // Обновляем теги: удаляем старые связи, добавляем новые
+      await supabaseClient
+        .from("task_tags")
+        .delete()
+        .eq("task_id", selectedTask.id);
+
+      if (newTask.tags.length > 0) {
+        const taskTagsToInsert = newTask.tags.map((tagId) => ({
+          task_id: selectedTask.id,
+          tag_id: tagId,
+        }));
+
+        await supabaseClient.from("task_tags").insert(taskTagsToInsert);
+      }
+
+      // Обновляем локальное состояние
+      const updatedTask = {
+        ...data,
+        subtasks: newTask.subtasks.map((s, i) => ({ ...s, position: i })),
+        task_tags: newTask.tags.map((tagId) => ({ tag_id: tagId })),
+      };
+
       setTasks((prev) =>
-        prev.map((task) => (task.id === selectedTask.id ? data : task)),
+        prev.map((task) => (task.id === selectedTask.id ? updatedTask : task)),
       );
 
       closeViewModal();
     } catch (error) {
       console.error("Ошибка:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -247,6 +400,14 @@ function DashboardPage() {
 
   const filteredTasks = tasks
     .filter((task) => {
+      // Фильтр по поисковому запросу
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase();
+        if (!task.text.toLowerCase().includes(query)) {
+          return false;
+        }
+      }
+      // Фильтр по статусу/категории
       if (filter === "all") return true;
       if (filter === "active") return task.status !== "done";
       if (filter === "completed") return task.status === "done";
@@ -387,6 +548,76 @@ function DashboardPage() {
     setNewCategory(INITIAL_CATEGORY_STATE);
   };
 
+  // Функции для работы с тегами
+  const handleCreateTag = async (name, color) => {
+    try {
+      const {
+        data: { user },
+      } = await supabaseClient.auth.getUser();
+
+      if (!user) return;
+
+      const { data, error } = await supabaseClient
+        .from("tags")
+        .insert({
+          user_id: user.id,
+          name: name,
+          color: color,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Ошибка создания тега:", error);
+        return;
+      }
+
+      setTags((prev) => [...prev, data]);
+    } catch (error) {
+      console.error("Ошибка:", error);
+    }
+  };
+
+  const handleUpdateTag = async (tagId, name, color) => {
+    try {
+      const { data, error } = await supabaseClient
+        .from("tags")
+        .update({ name, color })
+        .eq("id", tagId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Ошибка обновления тега:", error);
+        return;
+      }
+
+      setTags((prev) => prev.map((tag) => (tag.id === tagId ? data : tag)));
+    } catch (error) {
+      console.error("Ошибка:", error);
+    }
+  };
+
+  const handleDeleteTag = async (tagId) => {
+    if (!window.confirm("Удалить этот тег?")) return;
+
+    try {
+      const { error } = await supabaseClient
+        .from("tags")
+        .delete()
+        .eq("id", tagId);
+
+      if (error) {
+        console.error("Ошибка удаления тега:", error);
+        return;
+      }
+
+      setTags((prev) => prev.filter((tag) => tag.id !== tagId));
+    } catch (error) {
+      console.error("Ошибка:", error);
+    }
+  };
+
   const getCategoryInfo = (categoryId) => {
     const userCategory = categories.find((c) => c.id === categoryId);
     if (userCategory) return userCategory;
@@ -428,6 +659,7 @@ function DashboardPage() {
         openCreateCategoryModal={openCreateCategoryModal}
         openEditCategoryModal={openEditCategoryModal}
         handleDeleteCategory={handleDeleteCategory}
+        openTagModal={() => setIsTagModalOpen(true)}
         stats={stats}
       />
 
@@ -446,6 +678,24 @@ function DashboardPage() {
             </p>
           </div>
           <div className={styles.headerActions}>
+            <div className={styles.searchWrapper}>
+              <span className={styles.searchIcon}>🔍</span>
+              <input
+                type="text"
+                className={styles.searchInput}
+                placeholder="Поиск задач..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              {searchQuery && (
+                <button
+                  className={styles.searchClear}
+                  onClick={() => setSearchQuery("")}
+                >
+                  ✕
+                </button>
+              )}
+            </div>
             <div className={styles.viewToggle}>
               <button
                 className={`${styles.viewToggleBtn} ${viewMode === "list" ? styles.active : ""}`}
@@ -502,6 +752,7 @@ function DashboardPage() {
                     onEdit={openEditMode}
                     onDelete={deleteTask}
                     truncateText={truncateText}
+                    tags={tags}
                   />
                 );
               })
@@ -521,6 +772,7 @@ function DashboardPage() {
             getCategoryInfo={getCategoryInfo}
             getTimeRemaining={getTimeRemaining}
             truncateText={truncateText}
+            tags={tags}
           />
         )}
       </main>
@@ -531,6 +783,7 @@ function DashboardPage() {
         newTask={newTask}
         setNewTask={setNewTask}
         categories={categories}
+        tags={tags}
         onSubmit={handleSubmit}
         isLoading={isLoading}
       />
@@ -543,6 +796,7 @@ function DashboardPage() {
         newTask={newTask}
         setNewTask={setNewTask}
         categories={categories}
+        tags={tags}
         onUpdate={handleUpdateTask}
         onEdit={openEditMode}
         isLoading={isLoading}
@@ -558,6 +812,16 @@ function DashboardPage() {
         setNewCategory={setNewCategory}
         onCreate={handleCreateCategory}
         onUpdate={handleUpdateCategory}
+        isLoading={isLoading}
+      />
+
+      <TagModal
+        isOpen={isTagModalOpen}
+        onClose={() => setIsTagModalOpen(false)}
+        tags={tags}
+        onCreateTag={handleCreateTag}
+        onUpdateTag={handleUpdateTag}
+        onDeleteTag={handleDeleteTag}
         isLoading={isLoading}
       />
     </div>

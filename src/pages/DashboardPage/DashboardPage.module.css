@@ -278,6 +278,62 @@
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+/* Search */
+.searchWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 14px;
+  font-size: 16px;
+  pointer-events: none;
+}
+
+.searchInput {
+  width: 250px;
+  padding: 12px 40px 12px 42px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  color: #fff;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.searchInput::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: rgba(99, 102, 241, 0.5);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.searchClear {
+  position: absolute;
+  right: 12px;
+  width: 20px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.searchClear:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
 .viewToggleBtn {
   width: 42px;
   height: 42px;
@@ -498,6 +554,17 @@
   align-items: center;
   justify-content: space-between;
   margin-bottom: 10px;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.kanbanCardBadges {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  justify-content: flex-end;
+  margin-right: 8px;
 }
 
 .kanbanCardCategory {
@@ -667,6 +734,32 @@
 .taskContent {
   flex: 1;
   min-width: 0;
+}
+
+.taskHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.taskBadges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.subtasksBadge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: rgba(99, 102, 241, 0.2);
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .taskText {
@@ -938,10 +1031,372 @@
   box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
 }
 
+/* Modal Large */
+.modalLarge {
+  max-width: 600px;
+}
+
+/* Form Row */
+.formRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+/* Checkbox Label */
+.checkboxLabel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.checkboxLabel input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  accent-color: #6366f1;
+  cursor: pointer;
+}
+
+/* Recurrence Settings */
+.recurrenceSettings {
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.recurrenceSettings .formRow {
+  gap: 12px;
+}
+
+.recurrenceSettings input[type="number"] {
+  width: 100%;
+}
+
+.recurrenceSettings input[type="date"] {
+  width: 100%;
+}
+
+/* Subtasks */
+.subtaskInput {
+  display: flex;
+  gap: 8px;
+}
+
+.subtaskInput input {
+  flex: 1;
+  padding: 12px 15px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  color: #fff;
+  font-size: 14px;
+}
+
+.subtaskInput input:focus {
+  outline: none;
+  border-color: #6366f1;
+}
+
+.subtaskInput button {
+  width: 44px;
+  height: 44px;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  font-size: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.subtaskInput button:hover {
+  transform: scale(1.05);
+}
+
+.subtaskList {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.subtaskItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.subtaskItem span {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.subtaskItem button {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.subtaskItem button:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.subtaskItemCompleted span {
+  text-decoration: line-through;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* Tags Picker */
+.tagsPicker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tagOption {
+  padding: 6px 14px;
+  border: 2px solid;
+  border-radius: 20px;
+  background: transparent;
+  color: #fff;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tagOption:hover {
+  opacity: 0.8;
+}
+
+.tagOption.selected {
+  color: #fff;
+}
+
+/* Priority Indicator */
+.priorityIndicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.priorityHigh {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.priorityMedium {
+  background: rgba(249, 115, 22, 0.2);
+  color: #f97316;
+}
+
+.priorityLow {
+  background: rgba(100, 116, 139, 0.2);
+  color: #94a3b8;
+}
+
+/* Recurrence Badge */
+.recurrenceBadge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* Task Tags */
+.taskTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+  margin-bottom: 8px;
+}
+
+.taskTag {
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  color: #fff;
+}
+
+/* Task View Subtasks */
+.taskViewSubtasks {
+  margin-top: 16px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 12px;
+}
+
+.taskViewSubtasks h4 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* Tags Management */
+.tagInputRow {
+  display: flex;
+  gap: 8px;
+}
+
+.tagInputRow input {
+  flex: 1;
+}
+
+.tagAddButton,
+.tagCancelButton {
+  width: 44px;
+  height: 44px;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  font-size: 18px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tagAddButton:hover {
+  transform: scale(1.05);
+}
+
+.tagAddButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.tagCancelButton {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.tagCancelButton:hover {
+  background: rgba(239, 68, 68, 0.3);
+}
+
+.tagsList {
+  margin: 24px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.tagsList h4 {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: rgba(255, 255, 255, 0.5);
+  margin: 0 0 16px 0;
+}
+
+.emptyTagsText {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 14px;
+  text-align: center;
+  padding: 24px 20px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  margin: 0;
+}
+
+.tagsListItems {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 200px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.tagListItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  transition: all 0.2s ease;
+}
+
+.tagListItem:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.tagPreview {
+  padding: 6px 14px;
+  border-radius: 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #fff;
+}
+
+.tagListActions {
+  display: flex;
+  gap: 8px;
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
+}
+
+.tagListItem:hover .tagListActions {
+  opacity: 1;
+}
+
+.tagListActions button {
+  width: 34px;
+  height: 34px;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tagListActions button:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.1);
+}
+
 .formActions {
   display: flex;
   gap: 12px;
   margin-top: 8px;
+}
+
+.tagsList+.formActions {
+  margin-bottom: 24px;
+  margin-left: 24px;
+  margin-right: 24px;
 }
 
 .cancelButton,
@@ -1090,6 +1545,7 @@
   align-items: center;
   justify-content: space-between;
   padding-right: 16px;
+  margin-bottom: 12px;
 }
 
 .sectionHeader .sectionTitle {
@@ -1124,10 +1580,36 @@
   margin: 0;
 }
 
+.manageTagsButton {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 8px;
+}
+
+.manageTagsButton:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
 .customCategoryItem {
   display: flex;
   align-items: center;
   position: relative;
+  margin-bottom: 4px;
+}
+
+.customCategoryItem:last-child {
+  margin-bottom: 0;
 }
 
 .customCategoryItem .navItem {
@@ -1280,7 +1762,17 @@
 
   .headerActions {
     width: 100%;
-    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .searchWrapper {
+    width: 100%;
+    order: 1;
+  }
+
+  .searchInput {
+    width: 100%;
   }
 
   .viewToggle {
@@ -1290,6 +1782,7 @@
   .addButton {
     flex: 1;
     justify-content: center;
+    order: 2;
   }
 
   .taskCard {

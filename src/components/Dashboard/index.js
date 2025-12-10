@@ -4,5 +4,6 @@ export { default as TaskCard } from "./TaskCard.jsx";
 export { default as TaskModal } from "./TaskModal.jsx";
 export { default as TaskViewModal } from "./TaskViewModal.jsx";
 export { default as CategoryModal } from "./CategoryModal.jsx";
+export { default as TagModal } from "./TagModal.jsx";
 export { default as KanbanBoard } from "./KanbanBoard.jsx";
 export * from "./constants.js";

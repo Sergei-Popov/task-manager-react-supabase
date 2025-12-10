@@ -21,6 +21,7 @@ function KanbanBoard({
   getCategoryInfo,
   getTimeRemaining,
   truncateText,
+  tags = [],
 }) {
   const [activeTask, setActiveTask] = useState(null);
 
@@ -118,6 +119,7 @@ function KanbanBoard({
               getCategoryInfo={getCategoryInfo}
               getTimeRemaining={getTimeRemaining}
               truncateText={truncateText}
+              tags={tags}
             />
           );
         })}

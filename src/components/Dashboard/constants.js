@@ -58,6 +58,13 @@ export const INITIAL_TASK_STATE = {
   category: "work",
   color: "#6366f1",
   status: "todo",
+  priority: "medium",
+  is_recurring: false,
+  recurrence_type: null,
+  recurrence_interval: 1,
+  recurrence_end_date: null,
+  subtasks: [],
+  tags: [],
 };
 
 export const INITIAL_CATEGORY_STATE = {
@@ -74,4 +81,17 @@ export const TASK_STATUSES = {
     color: "#f97316",
   },
   done: { id: "done", name: "Завершено", icon: "✅", color: "#22c55e" },
+};
+
+export const TASK_PRIORITIES = {
+  low: { id: "low", name: "Низкий", icon: "🔽", color: "#64748b" },
+  medium: { id: "medium", name: "Средний", icon: "➡️", color: "#f97316" },
+  high: { id: "high", name: "Высокий", icon: "🔼", color: "#ef4444" },
+};
+
+export const RECURRENCE_TYPES = {
+  daily: { id: "daily", name: "Ежедневно", icon: "📅" },
+  weekly: { id: "weekly", name: "Еженедельно", icon: "📆" },
+  monthly: { id: "monthly", name: "Ежемесячно", icon: "🗓️" },
+  yearly: { id: "yearly", name: "Ежегодно", icon: "📅" },
 };

@@ -13,6 +13,7 @@ function Sidebar({
   openCreateCategoryModal,
   openEditCategoryModal,
   handleDeleteCategory,
+  openTagModal,
   stats,
 }) {
   return (
@@ -140,6 +141,12 @@ function Sidebar({
               ))
             )}
           </div>
+
+          {/* Кнопка управления тегами */}
+          <div className={styles.divider} />
+          <button className={styles.manageTagsButton} onClick={openTagModal}>
+            🏷️ Управление тегами
+          </button>
         </div>
 
         <div className={styles.sidebarFooter}>
