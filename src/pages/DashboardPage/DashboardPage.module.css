@@ -35,6 +35,8 @@
 /* Sidebar */
 .sidebar {
   width: 280px;
+  height: 100vh;
+  max-height: 100vh;
   background: rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(10px);
   border-right: 1px solid rgba(255, 255, 255, 0.1);
@@ -42,13 +44,17 @@
   display: flex;
   flex-direction: column;
   transition: transform 0.3s ease;
+  overflow: hidden;
+  position: sticky;
+  top: 0;
 }
 
 .sidebarHeader {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   margin-bottom: 32px;
+  flex-shrink: 0;
 }
 
 .closeSidebarButton {
@@ -67,6 +73,14 @@
 .closeSidebarButton:hover {
   background: rgba(255, 255, 255, 0.2);
   color: #fff;
+}
+
+.sidebarContent {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  margin-right: -8px;
+  padding-right: 8px;
 }
 
 .mobileMenuButton {
@@ -250,6 +264,46 @@
   margin: 0;
 }
 
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.viewToggle {
+  display: flex;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.viewToggleBtn {
+  width: 42px;
+  height: 42px;
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 18px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.viewToggleBtn:hover {
+  color: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.viewToggleBtn.active {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+}
+
 .addButton {
   display: flex;
   align-items: center;
@@ -358,6 +412,174 @@
   font-size: 14px;
 }
 
+/* Kanban Board */
+.kanbanBoard {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  min-height: 500px;
+}
+
+.kanbanColumn {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.kanbanColumnHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border-bottom: 3px solid;
+}
+
+.kanbanColumnIcon {
+  font-size: 18px;
+}
+
+.kanbanColumnTitle {
+  font-size: 15px;
+  font-weight: 600;
+  flex: 1;
+}
+
+.kanbanColumnCount {
+  background: rgba(255, 255, 255, 0.15);
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.kanbanColumnContent {
+  flex: 1;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  max-height: calc(100vh - 380px);
+}
+
+.kanbanEmptyState {
+  text-align: center;
+  padding: 24px;
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 14px;
+}
+
+.kanbanCard {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-left: 4px solid;
+  border-radius: 12px;
+  padding: 14px;
+  cursor: grab;
+  transition: all 0.2s ease;
+  touch-action: none;
+}
+
+.kanbanCard:hover {
+  background: rgba(255, 255, 255, 0.08);
+  transform: translateY(-2px);
+}
+
+.kanbanCard:active {
+  cursor: grabbing;
+}
+
+.kanbanCardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.kanbanCardCategory {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.kanbanCardActions {
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.kanbanCard:hover .kanbanCardActions {
+  opacity: 1;
+}
+
+.kanbanCardBtn {
+  width: 26px;
+  height: 26px;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.kanbanCardBtn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.1);
+}
+
+.kanbanCardText {
+  font-size: 14px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.9);
+  margin: 0 0 12px 0;
+  word-break: break-word;
+}
+
+.kanbanCardFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Drag and Drop стили */
+.kanbanColumn.columnOver {
+  background: rgba(99, 102, 241, 0.1);
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+.kanbanColumn.columnOver .kanbanColumnContent {
+  background: rgba(99, 102, 241, 0.05);
+}
+
+.kanbanCard.cardDragging {
+  opacity: 0.5;
+  box-shadow: none;
+}
+
+.kanbanCard.dragging {
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  transform: rotate(3deg);
+  cursor: grabbing;
+  z-index: 1000;
+}
+
+.kanbanCardDeadline {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.kanbanCardDeadline.overdue {
+  color: #ef4444;
+}
+
 .taskCard {
   display: flex;
   align-items: center;
@@ -368,11 +590,9 @@
   border-left: 4px solid;
   border-radius: 16px;
   padding: 20px;
-  transition: all 0.3s ease;
 }
 
 .taskCard:hover {
-  transform: translateX(4px);
   background: rgba(255, 255, 255, 0.08);
 }
 
@@ -383,6 +603,45 @@
 .taskCard.completed .taskText {
   text-decoration: line-through;
   color: rgba(255, 255, 255, 0.4);
+}
+
+.statusSelector {
+  flex-shrink: 0;
+}
+
+.statusSelect {
+  padding: 6px 10px;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  background-size: 14px;
+  padding-right: 26px;
+  min-width: 130px;
+}
+
+.statusSelect:hover {
+  opacity: 0.9;
+  transform: scale(1.02);
+}
+
+.statusSelect:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
+}
+
+.statusSelect option {
+  background: #1a1a2e;
+  color: #fff;
+  padding: 8px;
 }
 
 .checkbox {
@@ -945,6 +1204,14 @@
   .statsGrid {
     grid-template-columns: repeat(2, 1fr);
   }
+
+  .kanbanBoard {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .kanbanColumn:last-child {
+    grid-column: span 2;
+  }
 }
 
 @media (max-width: 900px) {
@@ -959,6 +1226,10 @@
 
   .sidebar.sidebarOpen {
     transform: translateX(0);
+  }
+
+  .sidebarHeader {
+    justify-content: space-between;
   }
 
   .closeSidebarButton {
@@ -981,6 +1252,18 @@
     padding: 24px;
     padding-top: 80px;
   }
+
+  .kanbanBoard {
+    grid-template-columns: 1fr;
+  }
+
+  .kanbanColumn:last-child {
+    grid-column: span 1;
+  }
+
+  .kanbanColumnContent {
+    max-height: 300px;
+  }
 }
 
 @media (max-width: 600px) {
@@ -995,9 +1278,45 @@
     gap: 16px;
   }
 
-  .addButton {
+  .headerActions {
     width: 100%;
+    justify-content: space-between;
+  }
+
+  .viewToggle {
+    display: none;
+  }
+
+  .addButton {
+    flex: 1;
     justify-content: center;
+  }
+
+  .taskCard {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .statusSelector {
+    order: -1;
+    width: 100%;
+  }
+
+  .statusSelect {
+    width: 100%;
+    padding: 10px 12px;
+    font-size: 13px;
+    min-width: unset;
+  }
+
+  .taskContent {
+    width: 100%;
+    order: 1;
+  }
+
+  .taskActions {
+    order: 2;
+    margin-left: auto;
   }
 
   .taskMeta {
@@ -1008,6 +1327,10 @@
   .modal {
     margin: 16px;
     border-radius: 20px;
+  }
+
+  .kanbanBoard {
+    display: none;
   }
 }
 

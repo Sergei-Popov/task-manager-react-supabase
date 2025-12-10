@@ -1,62 +1,18 @@
 import { useState, useEffect } from "react";
 import styles from "./DashboardPage.module.css";
-import SingOutButton from "../../components/SingOutButton/SingOutButton.jsx";
-import DateTimePicker from "../../components/DateTimePicker/DateTimePicker.jsx";
 import supabaseClient from "../../utils/supabaseClient.js";
-
-const DEFAULT_CATEGORIES = [
-  { id: "work", name: "Работа", icon: "💼" },
-  { id: "personal", name: "Личное", icon: "🏠" },
-  { id: "study", name: "Учёба", icon: "📚" },
-  { id: "health", name: "Здоровье", icon: "💪" },
-  { id: "shopping", name: "Покупки", icon: "🛒" },
-];
-
-const AVAILABLE_ICONS = [
-  "💼",
-  "🏠",
-  "📚",
-  "💪",
-  "🛒",
-  "🎯",
-  "🎨",
-  "🎮",
-  "🎵",
-  "🎬",
-  "✈️",
-  "🚗",
-  "💰",
-  "📱",
-  "💻",
-  "📧",
-  "📞",
-  "🍽️",
-  "🏃",
-  "🎁",
-  "❤️",
-  "⭐",
-  "🔥",
-  "💡",
-  "🎉",
-  "📝",
-  "🔔",
-  "🌟",
-  "🚀",
-  "🏆",
-];
-
-const COLORS = [
-  "#6366f1", // Индиго
-  "#8b5cf6", // Фиолетовый
-  "#ec4899", // Розовый
-  "#ef4444", // Красный
-  "#f97316", // Оранжевый
-  "#eab308", // Жёлтый
-  "#22c55e", // Зелёный
-  "#14b8a6", // Бирюзовый
-  "#3b82f6", // Синий
-  "#64748b", // Серый
-];
+import {
+  Sidebar,
+  StatsGrid,
+  TaskCard,
+  TaskModal,
+  TaskViewModal,
+  CategoryModal,
+  KanbanBoard,
+  DEFAULT_CATEGORIES,
+  INITIAL_TASK_STATE,
+  INITIAL_CATEGORY_STATE,
+} from "../../components/Dashboard";
 
 function DashboardPage() {
   const [tasks, setTasks] = useState([]);
@@ -72,16 +28,9 @@ function DashboardPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [userEmail, setUserEmail] = useState("");
-  const [newTask, setNewTask] = useState({
-    text: "",
-    deadline: "",
-    category: "work",
-    color: "#6366f1",
-  });
-  const [newCategory, setNewCategory] = useState({
-    name: "",
-    icon: "🎯",
-  });
+  const [viewMode, setViewMode] = useState("list"); // "list" или "kanban"
+  const [newTask, setNewTask] = useState(INITIAL_TASK_STATE);
+  const [newCategory, setNewCategory] = useState(INITIAL_CATEGORY_STATE);
 
   // Загрузка задач и категорий при монтировании
   useEffect(() => {
@@ -126,7 +75,6 @@ function DashboardPage() {
         return;
       }
 
-      // Сохраняем email пользователя
       setUserEmail(user.email || "");
 
       const { data, error } = await supabaseClient
@@ -146,15 +94,6 @@ function DashboardPage() {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setNewTask((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleColorSelect = (color) => {
-    setNewTask((prev) => ({ ...prev, color }));
   };
 
   const handleSubmit = async (e) => {
@@ -181,7 +120,7 @@ function DashboardPage() {
           deadline: newTask.deadline,
           category: newTask.category,
           color: newTask.color,
-          completed: false,
+          status: newTask.status,
         })
         .select()
         .single();
@@ -196,12 +135,7 @@ function DashboardPage() {
           (a, b) => new Date(a.deadline) - new Date(b.deadline),
         ),
       );
-      setNewTask({
-        text: "",
-        deadline: "",
-        category: "work",
-        color: "#6366f1",
-      });
+      setNewTask(INITIAL_TASK_STATE);
       setIsLoading(false);
       setIsModalOpen(false);
     } catch (error) {
@@ -209,14 +143,11 @@ function DashboardPage() {
     }
   };
 
-  const toggleTask = async (id) => {
-    const task = tasks.find((t) => t.id === id);
-    if (!task) return;
-
+  const updateTaskStatus = async (id, newStatus) => {
     try {
       const { error } = await supabaseClient
         .from("tasks")
-        .update({ completed: !task.completed })
+        .update({ status: newStatus })
         .eq("id", id);
 
       if (error) {
@@ -225,7 +156,7 @@ function DashboardPage() {
       }
 
       setTasks((prev) =>
-        prev.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t)),
+        prev.map((t) => (t.id === id ? { ...t, status: newStatus } : t)),
       );
     } catch (error) {
       console.error("Ошибка:", error);
@@ -263,6 +194,7 @@ function DashboardPage() {
       deadline: task.deadline,
       category: task.category,
       color: task.color,
+      status: task.status,
     });
     setIsEditMode(true);
     setIsViewModalOpen(true);
@@ -280,6 +212,7 @@ function DashboardPage() {
           deadline: newTask.deadline,
           category: newTask.category,
           color: newTask.color,
+          status: newTask.status,
         })
         .eq("id", selectedTask.id)
         .select()
@@ -304,12 +237,7 @@ function DashboardPage() {
     setIsViewModalOpen(false);
     setIsEditMode(false);
     setSelectedTask(null);
-    setNewTask({
-      text: "",
-      deadline: "",
-      category: "work",
-      color: "#6366f1",
-    });
+    setNewTask(INITIAL_TASK_STATE);
   };
 
   const truncateText = (text, maxLength = 250) => {
@@ -320,8 +248,10 @@ function DashboardPage() {
   const filteredTasks = tasks
     .filter((task) => {
       if (filter === "all") return true;
-      if (filter === "active") return !task.completed;
-      if (filter === "completed") return task.completed;
+      if (filter === "active") return task.status !== "done";
+      if (filter === "completed") return task.status === "done";
+      if (filter === "in_progress") return task.status === "in_progress";
+      if (filter === "todo") return task.status === "todo";
       return task.category === filter;
     })
     .sort((a, b) => new Date(a.deadline) - new Date(b.deadline));
@@ -344,15 +274,6 @@ function DashboardPage() {
   };
 
   // Функции для работы с категориями
-  const handleCategoryInputChange = (e) => {
-    const { name, value } = e.target;
-    setNewCategory((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleCategoryIconSelect = (icon) => {
-    setNewCategory((prev) => ({ ...prev, icon }));
-  };
-
   const handleCreateCategory = async (e) => {
     e.preventDefault();
     if (!newCategory.name.trim()) return;
@@ -437,7 +358,6 @@ function DashboardPage() {
 
       setCategories((prev) => prev.filter((cat) => cat.id !== categoryId));
 
-      // Сбрасываем фильтр, если была выбрана удаляемая категория
       if (filter === categoryId) {
         setFilter("all");
       }
@@ -447,7 +367,7 @@ function DashboardPage() {
   };
 
   const openCreateCategoryModal = () => {
-    setNewCategory({ name: "", icon: "🎯" });
+    setNewCategory(INITIAL_CATEGORY_STATE);
     setSelectedCategory(null);
     setIsEditCategoryMode(false);
     setIsCategoryModalOpen(true);
@@ -464,15 +384,13 @@ function DashboardPage() {
     setIsCategoryModalOpen(false);
     setIsEditCategoryMode(false);
     setSelectedCategory(null);
-    setNewCategory({ name: "", icon: "🎯" });
+    setNewCategory(INITIAL_CATEGORY_STATE);
   };
 
   const getCategoryInfo = (categoryId) => {
-    // Сначала ищем в пользовательских категориях
     const userCategory = categories.find((c) => c.id === categoryId);
     if (userCategory) return userCategory;
 
-    // Затем в дефолтных
     const defaultCategory = DEFAULT_CATEGORIES.find((c) => c.id === categoryId);
     if (defaultCategory) return defaultCategory;
 
@@ -481,10 +399,11 @@ function DashboardPage() {
 
   const stats = {
     total: tasks.length,
-    completed: tasks.filter((t) => t.completed).length,
-    active: tasks.filter((t) => !t.completed).length,
+    todo: tasks.filter((t) => t.status === "todo").length,
+    inProgress: tasks.filter((t) => t.status === "in_progress").length,
+    completed: tasks.filter((t) => t.status === "done").length,
     overdue: tasks.filter(
-      (t) => !t.completed && new Date(t.deadline) < new Date(),
+      (t) => t.status !== "done" && new Date(t.deadline) < new Date(),
     ).length,
   };
 
@@ -498,135 +417,19 @@ function DashboardPage() {
         ☰
       </button>
 
-      {/* Sidebar Overlay */}
-      {isSidebarOpen && (
-        <div
-          className={styles.sidebarOverlay}
-          onClick={() => setIsSidebarOpen(false)}
-        />
-      )}
-
-      {/* Sidebar */}
-      <aside
-        className={`${styles.sidebar} ${isSidebarOpen ? styles.sidebarOpen : ""}`}
-      >
-        <div className={styles.sidebarHeader}>
-          <div className={styles.logo}>
-            <span className={styles.logoIcon}>✓</span>
-            <span className={styles.logoText}>Мои задачи</span>
-          </div>
-          <button
-            className={styles.closeSidebarButton}
-            onClick={() => setIsSidebarOpen(false)}
-          >
-            ✕
-          </button>
-        </div>
-
-        <nav className={styles.nav}>
-          <button
-            className={`${styles.navItem} ${filter === "all" ? styles.active : ""}`}
-            onClick={() => setFilter("all")}
-          >
-            <span className={styles.navIcon}>📋</span>
-            Все задачи
-            <span className={styles.badge}>{stats.total}</span>
-          </button>
-          <button
-            className={`${styles.navItem} ${filter === "active" ? styles.active : ""}`}
-            onClick={() => setFilter("active")}
-          >
-            <span className={styles.navIcon}>⏳</span>
-            Активные
-            <span className={styles.badge}>{stats.active}</span>
-          </button>
-          <button
-            className={`${styles.navItem} ${filter === "completed" ? styles.active : ""}`}
-            onClick={() => setFilter("completed")}
-          >
-            <span className={styles.navIcon}>✅</span>
-            Завершённые
-            <span className={styles.badge}>{stats.completed}</span>
-          </button>
-        </nav>
-
-        <div className={styles.categoriesSection}>
-          <h3 className={styles.sectionTitle}>Категории</h3>
-          {DEFAULT_CATEGORIES.map((category) => (
-            <button
-              key={category.id}
-              className={`${styles.navItem} ${filter === category.id ? styles.active : ""}`}
-              onClick={() => setFilter(category.id)}
-            >
-              <span className={styles.navIcon}>{category.icon}</span>
-              {category.name}
-              <span className={styles.badge}>
-                {tasks.filter((t) => t.category === category.id).length}
-              </span>
-            </button>
-          ))}
-
-          <div className={styles.divider} />
-          <div className={styles.sectionHeader}>
-            <h3 className={styles.sectionTitle}>Мои категории</h3>
-            <button
-              className={styles.addCategoryButton}
-              onClick={openCreateCategoryModal}
-              title="Добавить категорию"
-            >
-              +
-            </button>
-          </div>
-          {categories.length === 0 ? (
-            <p className={styles.emptyCategories}>
-              Нет пользовательских категорий
-            </p>
-          ) : (
-            categories.map((category) => (
-              <div key={category.id} className={styles.customCategoryItem}>
-                <button
-                  className={`${styles.navItem} ${filter === category.id ? styles.active : ""}`}
-                  onClick={() => setFilter(category.id)}
-                >
-                  <span className={styles.navIcon}>{category.icon}</span>
-                  {category.name}
-                  <span className={styles.badge}>
-                    {tasks.filter((t) => t.category === category.id).length}
-                  </span>
-                </button>
-                <div className={styles.categoryActions}>
-                  <button
-                    className={styles.categoryActionBtn}
-                    onClick={() => openEditCategoryModal(category)}
-                    title="Редактировать"
-                  >
-                    ✏️
-                  </button>
-                  <button
-                    className={styles.categoryActionBtn}
-                    onClick={() => handleDeleteCategory(category.id)}
-                    title="Удалить"
-                  >
-                    🗑️
-                  </button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-
-        <div className={styles.sidebarFooter}>
-          {userEmail && (
-            <div className={styles.userInfo}>
-              <span className={styles.userIcon}>👤</span>
-              <span className={styles.userEmail}>
-                {userEmail.toUpperCase()}
-              </span>
-            </div>
-          )}
-          <SingOutButton />
-        </div>
-      </aside>
+      <Sidebar
+        tasks={tasks}
+        categories={categories}
+        filter={filter}
+        setFilter={setFilter}
+        isSidebarOpen={isSidebarOpen}
+        setIsSidebarOpen={setIsSidebarOpen}
+        userEmail={userEmail}
+        openCreateCategoryModal={openCreateCategoryModal}
+        openEditCategoryModal={openEditCategoryModal}
+        handleDeleteCategory={handleDeleteCategory}
+        stats={stats}
+      />
 
       {/* Main Content */}
       <main className={styles.main}>
@@ -642,503 +445,121 @@ function DashboardPage() {
               })}
             </p>
           </div>
-          <button
-            className={styles.addButton}
-            onClick={() => setIsModalOpen(true)}
-          >
-            <span>+</span> Новая задача
-          </button>
+          <div className={styles.headerActions}>
+            <div className={styles.viewToggle}>
+              <button
+                className={`${styles.viewToggleBtn} ${viewMode === "list" ? styles.active : ""}`}
+                onClick={() => setViewMode("list")}
+                title="Список"
+              >
+                ☰
+              </button>
+              <button
+                className={`${styles.viewToggleBtn} ${viewMode === "kanban" ? styles.active : ""}`}
+                onClick={() => setViewMode("kanban")}
+                title="Канбан"
+              >
+                ▦
+              </button>
+            </div>
+            <button
+              className={styles.addButton}
+              onClick={() => setIsModalOpen(true)}
+            >
+              <span>+</span> Новая задача
+            </button>
+          </div>
         </header>
 
-        {/* Stats Cards */}
-        <div className={styles.statsGrid}>
-          <div className={styles.statCard}>
-            <div className={styles.statIcon} style={{ background: "#6366f1" }}>
-              📊
-            </div>
-            <div className={styles.statInfo}>
-              <span className={styles.statValue}>{stats.total}</span>
-              <span className={styles.statLabel}>Всего задач</span>
-            </div>
-          </div>
-          <div className={styles.statCard}>
-            <div className={styles.statIcon} style={{ background: "#22c55e" }}>
-              ✅
-            </div>
-            <div className={styles.statInfo}>
-              <span className={styles.statValue}>{stats.completed}</span>
-              <span className={styles.statLabel}>Завершено</span>
-            </div>
-          </div>
-          <div className={styles.statCard}>
-            <div className={styles.statIcon} style={{ background: "#f97316" }}>
-              ⏳
-            </div>
-            <div className={styles.statInfo}>
-              <span className={styles.statValue}>{stats.active}</span>
-              <span className={styles.statLabel}>В работе</span>
-            </div>
-          </div>
-          <div className={styles.statCard}>
-            <div className={styles.statIcon} style={{ background: "#ef4444" }}>
-              ⚠️
-            </div>
-            <div className={styles.statInfo}>
-              <span className={styles.statValue}>{stats.overdue}</span>
-              <span className={styles.statLabel}>Просрочено</span>
-            </div>
-          </div>
-        </div>
+        <StatsGrid stats={stats} />
 
-        {/* Tasks List */}
-        <div className={styles.tasksList}>
-          {isLoading ? (
-            <div className={styles.emptyState}>
-              <span className={styles.emptyIcon}>⏳</span>
-              <h3>Загрузка задач...</h3>
-            </div>
-          ) : filteredTasks.length === 0 ? (
-            <div className={styles.emptyState}>
-              <span className={styles.emptyIcon}>📝</span>
-              <h3>Нет задач</h3>
-              <p>Создайте новую задачу, чтобы начать</p>
-            </div>
-          ) : (
-            filteredTasks.map((task) => {
-              const timeRemaining = getTimeRemaining(task.deadline);
-              const category = getCategoryInfo(task.category);
-              return (
-                <div
-                  key={task.id}
-                  className={`${styles.taskCard} ${task.completed ? styles.completed : ""}`}
-                  style={{ borderLeftColor: task.color }}
-                >
-                  <button
-                    className={`${styles.checkbox} ${task.completed ? styles.checked : ""}`}
-                    onClick={() => toggleTask(task.id)}
-                    style={{
-                      borderColor: task.color,
-                      backgroundColor: task.completed
-                        ? task.color
-                        : "transparent",
-                    }}
-                  >
-                    {task.completed && "✓"}
-                  </button>
-                  <div
-                    className={styles.taskContent}
-                    onClick={() => openTaskView(task)}
-                  >
-                    <h4 className={styles.taskText}>
-                      {truncateText(task.text)}
-                    </h4>
-                    <div className={styles.taskMeta}>
-                      <span className={styles.taskCategory}>
-                        {category.icon} {category.name}
-                      </span>
-                      <span
-                        className={`${styles.taskDeadline} ${timeRemaining.isOverdue ? styles.overdue : ""}`}
-                      >
-                        🕐 {timeRemaining.text}
-                      </span>
-                      <span className={styles.taskDate}>
-                        📅{" "}
-                        {new Date(task.deadline).toLocaleString("ru-RU", {
-                          day: "2-digit",
-                          month: "2-digit",
-                          year: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
-                    </div>
-                  </div>
-                  <div className={styles.taskActions}>
-                    <button
-                      className={styles.editButton}
-                      onClick={() => openEditMode(task)}
-                    >
-                      ✏️
-                    </button>
-                    <button
-                      className={styles.deleteButton}
-                      onClick={() => deleteTask(task.id)}
-                    >
-                      🗑️
-                    </button>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
+        {/* Tasks List View */}
+        {viewMode === "list" && (
+          <div className={styles.tasksList}>
+            {isLoading ? (
+              <div className={styles.emptyState}>
+                <span className={styles.emptyIcon}>⏳</span>
+                <h3>Загрузка задач...</h3>
+              </div>
+            ) : filteredTasks.length === 0 ? (
+              <div className={styles.emptyState}>
+                <span className={styles.emptyIcon}>📝</span>
+                <h3>Нет задач</h3>
+                <p>Создайте новую задачу, чтобы начать</p>
+              </div>
+            ) : (
+              filteredTasks.map((task) => {
+                const timeRemaining = getTimeRemaining(task.deadline);
+                const category = getCategoryInfo(task.category);
+                return (
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    category={category}
+                    timeRemaining={timeRemaining}
+                    onStatusChange={updateTaskStatus}
+                    onView={openTaskView}
+                    onEdit={openEditMode}
+                    onDelete={deleteTask}
+                    truncateText={truncateText}
+                  />
+                );
+              })
+            )}
+          </div>
+        )}
+
+        {/* Kanban View */}
+        {viewMode === "kanban" && (
+          <KanbanBoard
+            tasks={filteredTasks}
+            isLoading={isLoading}
+            onStatusChange={updateTaskStatus}
+            onView={openTaskView}
+            onEdit={openEditMode}
+            onDelete={deleteTask}
+            getCategoryInfo={getCategoryInfo}
+            getTimeRemaining={getTimeRemaining}
+            truncateText={truncateText}
+          />
+        )}
       </main>
 
-      {/* Modal */}
-      {isModalOpen && (
-        <div
-          className={styles.modalOverlay}
-          onClick={() => setIsModalOpen(false)}
-        >
-          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-            <div className={styles.modalHeader}>
-              <h2>Новая задача</h2>
-              <button
-                className={styles.closeButton}
-                onClick={() => setIsModalOpen(false)}
-              >
-                ✕
-              </button>
-            </div>
-            <div className={styles.modalContent}>
-              <form onSubmit={handleSubmit} className={styles.form}>
-                <div className={styles.formGroup}>
-                  <label htmlFor="text">Текст задачи</label>
-                  <textarea
-                    id="text"
-                    name="text"
-                    value={newTask.text}
-                    onChange={handleInputChange}
-                    placeholder="Введите описание задачи..."
-                    required
-                  />
-                </div>
+      <TaskModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        newTask={newTask}
+        setNewTask={setNewTask}
+        categories={categories}
+        onSubmit={handleSubmit}
+        isLoading={isLoading}
+      />
 
-                <div className={styles.formGroup}>
-                  <label>Срок выполнения</label>
-                  <DateTimePicker
-                    value={newTask.deadline}
-                    onChange={(value) =>
-                      setNewTask((prev) => ({ ...prev, deadline: value }))
-                    }
-                    placeholder="Выберите дату и время"
-                  />
-                </div>
+      <TaskViewModal
+        isOpen={isViewModalOpen}
+        onClose={closeViewModal}
+        selectedTask={selectedTask}
+        isEditMode={isEditMode}
+        newTask={newTask}
+        setNewTask={setNewTask}
+        categories={categories}
+        onUpdate={handleUpdateTask}
+        onEdit={openEditMode}
+        isLoading={isLoading}
+        getCategoryInfo={getCategoryInfo}
+        getTimeRemaining={getTimeRemaining}
+      />
 
-                <div className={styles.formGroup}>
-                  <label htmlFor="category">Категория</label>
-                  <select
-                    id="category"
-                    name="category"
-                    value={newTask.category}
-                    onChange={handleInputChange}
-                  >
-                    {DEFAULT_CATEGORIES.map((cat) => (
-                      <option key={cat.id} value={cat.id}>
-                        {cat.icon} {cat.name}
-                      </option>
-                    ))}
-                    {categories.map((cat) => (
-                      <option key={cat.id} value={cat.id}>
-                        {cat.icon} {cat.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label>Цвет задачи</label>
-                  <div className={styles.colorPicker}>
-                    {COLORS.map((color) => (
-                      <button
-                        key={color}
-                        type="button"
-                        className={`${styles.colorOption} ${newTask.color === color ? styles.selected : ""}`}
-                        style={{ backgroundColor: color }}
-                        onClick={() => handleColorSelect(color)}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                <div className={styles.formActions}>
-                  <button
-                    type="button"
-                    className={styles.cancelButton}
-                    onClick={() => setIsModalOpen(false)}
-                  >
-                    Отмена
-                  </button>
-                  <button
-                    type="submit"
-                    className={styles.submitButton}
-                    disabled={isLoading}
-                  >
-                    {isLoading ? "Создание..." : "Создать задачу"}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* View/Edit Task Modal */}
-      {isViewModalOpen && selectedTask && (
-        <div className={styles.modalOverlay} onClick={closeViewModal}>
-          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-            <div className={styles.modalHeader}>
-              <h2>
-                {isEditMode ? "Редактирование задачи" : "Просмотр задачи"}
-              </h2>
-              <button className={styles.closeButton} onClick={closeViewModal}>
-                ✕
-              </button>
-            </div>
-            <div className={styles.modalContent}>
-              {isEditMode ? (
-                <form onSubmit={handleUpdateTask} className={styles.form}>
-                  <div className={styles.formGroup}>
-                    <label htmlFor="editText">Текст задачи</label>
-                    <textarea
-                      id="editText"
-                      name="text"
-                      value={newTask.text}
-                      onChange={handleInputChange}
-                      placeholder="Введите описание задачи..."
-                      required
-                    />
-                  </div>
-
-                  <div className={styles.formGroup}>
-                    <label>Срок выполнения</label>
-                    <DateTimePicker
-                      value={newTask.deadline}
-                      onChange={(value) =>
-                        setNewTask((prev) => ({ ...prev, deadline: value }))
-                      }
-                      placeholder="Выберите дату и время"
-                    />
-                  </div>
-
-                  <div className={styles.formGroup}>
-                    <label htmlFor="editCategory">Категория</label>
-                    <select
-                      id="editCategory"
-                      name="category"
-                      value={newTask.category}
-                      onChange={handleInputChange}
-                    >
-                      {DEFAULT_CATEGORIES.map((cat) => (
-                        <option key={cat.id} value={cat.id}>
-                          {cat.icon} {cat.name}
-                        </option>
-                      ))}
-                      {categories.map((cat) => (
-                        <option key={cat.id} value={cat.id}>
-                          {cat.icon} {cat.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className={styles.formGroup}>
-                    <label>Цвет задачи</label>
-                    <div className={styles.colorPicker}>
-                      {COLORS.map((color) => (
-                        <button
-                          key={color}
-                          type="button"
-                          className={`${styles.colorOption} ${newTask.color === color ? styles.selected : ""}`}
-                          style={{ backgroundColor: color }}
-                          onClick={() => handleColorSelect(color)}
-                        />
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className={styles.formActions}>
-                    <button
-                      type="button"
-                      className={styles.cancelButton}
-                      onClick={closeViewModal}
-                    >
-                      Отмена
-                    </button>
-                    <button
-                      type="submit"
-                      className={styles.submitButton}
-                      disabled={isLoading}
-                    >
-                      {isLoading ? "Сохраняю..." : "Сохранить изменения"}
-                    </button>
-                  </div>
-                </form>
-              ) : (
-                <div className={styles.taskView}>
-                  <div
-                    className={styles.taskViewHeader}
-                    style={{ borderLeftColor: selectedTask.color }}
-                  >
-                    <span
-                      className={styles.taskViewStatus}
-                      style={{
-                        backgroundColor: selectedTask.completed
-                          ? "#22c55e"
-                          : "#f97316",
-                      }}
-                    >
-                      {selectedTask.completed ? "Завершено" : "В работе"}
-                    </span>
-                    <span className={styles.taskViewCategory}>
-                      {getCategoryInfo(selectedTask.category).icon}{" "}
-                      {getCategoryInfo(selectedTask.category).name}
-                    </span>
-                  </div>
-
-                  <div className={styles.taskViewContent}>
-                    <p className={styles.taskViewText}>{selectedTask.text}</p>
-                  </div>
-
-                  <div className={styles.taskViewDetails}>
-                    <div className={styles.taskViewDetail}>
-                      <span className={styles.taskViewDetailLabel}>
-                        📅 Срок выполнения:
-                      </span>
-                      <span className={styles.taskViewDetailValue}>
-                        {new Date(selectedTask.deadline).toLocaleString(
-                          "ru-RU",
-                          {
-                            day: "numeric",
-                            month: "long",
-                            year: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          },
-                        )}
-                      </span>
-                    </div>
-                    <div className={styles.taskViewDetail}>
-                      <span className={styles.taskViewDetailLabel}>
-                        🕐 Осталось времени:
-                      </span>
-                      <span
-                        className={`${styles.taskViewDetailValue} ${getTimeRemaining(selectedTask.deadline).isOverdue ? styles.overdue : ""}`}
-                      >
-                        {getTimeRemaining(selectedTask.deadline).text}
-                      </span>
-                    </div>
-                    <div className={styles.taskViewDetail}>
-                      <span className={styles.taskViewDetailLabel}>
-                        📝 Создано:
-                      </span>
-                      <span className={styles.taskViewDetailValue}>
-                        {new Date(selectedTask.created_at).toLocaleString(
-                          "ru-RU",
-                          {
-                            day: "numeric",
-                            month: "long",
-                            year: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          },
-                        )}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className={styles.formActions}>
-                    <button
-                      type="button"
-                      className={styles.cancelButton}
-                      onClick={closeViewModal}
-                    >
-                      Закрыть
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.submitButton}
-                      onClick={() => openEditMode(selectedTask)}
-                    >
-                      ✏️ Редактировать
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Category Modal */}
-      {isCategoryModalOpen && (
-        <div className={styles.modalOverlay} onClick={closeCategoryModal}>
-          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-            <div className={styles.modalHeader}>
-              <h2>
-                {isEditCategoryMode
-                  ? "Редактирование категории"
-                  : "Новая категория"}
-              </h2>
-              <button
-                className={styles.closeButton}
-                onClick={closeCategoryModal}
-              >
-                ✕
-              </button>
-            </div>
-            <div className={styles.modalContent}>
-              <form
-                onSubmit={
-                  isEditCategoryMode
-                    ? handleUpdateCategory
-                    : handleCreateCategory
-                }
-                className={styles.form}
-              >
-                <div className={styles.formGroup}>
-                  <label htmlFor="categoryName">Название категории</label>
-                  <input
-                    id="categoryName"
-                    name="name"
-                    value={newCategory.name}
-                    onChange={handleCategoryInputChange}
-                    placeholder="Введите название категории..."
-                    required
-                  />
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label>Иконка категории</label>
-                  <div className={styles.iconPicker}>
-                    {AVAILABLE_ICONS.map((icon) => (
-                      <button
-                        key={icon}
-                        type="button"
-                        className={`${styles.iconOption} ${newCategory.icon === icon ? styles.selected : ""}`}
-                        onClick={() => handleCategoryIconSelect(icon)}
-                      >
-                        {icon}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className={styles.formActions}>
-                  <button
-                    type="button"
-                    className={styles.cancelButton}
-                    onClick={closeCategoryModal}
-                  >
-                    Отмена
-                  </button>
-                  <button
-                    type="submit"
-                    className={styles.submitButton}
-                    disabled={isLoading}
-                  >
-                    {isLoading
-                      ? "Сохранение..."
-                      : isEditCategoryMode
-                        ? "Сохранить изменения"
-                        : "Создать категорию"}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
+      <CategoryModal
+        isOpen={isCategoryModalOpen}
+        onClose={closeCategoryModal}
+        isEditMode={isEditCategoryMode}
+        newCategory={newCategory}
+        setNewCategory={setNewCategory}
+        onCreate={handleCreateCategory}
+        onUpdate={handleUpdateCategory}
+        isLoading={isLoading}
+      />
     </div>
   );
 }
