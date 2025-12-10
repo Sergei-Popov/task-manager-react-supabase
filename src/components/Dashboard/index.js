@@ -6,4 +6,5 @@ export { default as TaskViewModal } from "./TaskViewModal.jsx";
 export { default as CategoryModal } from "./CategoryModal.jsx";
 export { default as TagModal } from "./TagModal.jsx";
 export { default as KanbanBoard } from "./KanbanBoard.jsx";
+export { default as CalendarView } from "./CalendarView.jsx";
 export * from "./constants.js";

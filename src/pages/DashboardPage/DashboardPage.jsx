@@ -10,6 +10,7 @@ import {
   CategoryModal,
   TagModal,
   KanbanBoard,
+  CalendarView,
   DEFAULT_CATEGORIES,
   INITIAL_TASK_STATE,
   INITIAL_CATEGORY_STATE,
@@ -711,6 +712,13 @@ function DashboardPage() {
               >
                 ▦
               </button>
+              <button
+                className={`${styles.viewToggleBtn} ${viewMode === "calendar" ? styles.active : ""}`}
+                onClick={() => setViewMode("calendar")}
+                title="Календарь"
+              >
+                📅
+              </button>
             </div>
             <button
               className={styles.addButton}
@@ -772,6 +780,17 @@ function DashboardPage() {
             getCategoryInfo={getCategoryInfo}
             getTimeRemaining={getTimeRemaining}
             truncateText={truncateText}
+            tags={tags}
+          />
+        )}
+
+        {/* Calendar View */}
+        {viewMode === "calendar" && (
+          <CalendarView
+            tasks={tasks}
+            onView={openTaskView}
+            onEdit={openEditMode}
+            onStatusChange={updateTaskStatus}
             tags={tags}
           />
         )}
