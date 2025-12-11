@@ -2249,6 +2249,10 @@
     font-size: 16px;
   }
 
+  .viewToggleBtn[title="Канбан"] {
+    display: none;
+  }
+
   .addButton {
     flex: 1;
     justify-content: center;
