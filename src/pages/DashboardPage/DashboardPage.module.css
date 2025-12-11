@@ -2002,6 +2002,7 @@
   cursor: pointer;
   transition: all 0.2s ease;
   margin-top: 8px;
+  margin-bottom: 16px;
 }
 
 .manageTagsButton:hover {
