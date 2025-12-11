@@ -106,6 +106,35 @@
   box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
 }
 
+.mobileRefreshButton {
+  display: none;
+  position: fixed;
+  top: 20px;
+  left: 76px;
+  z-index: 100;
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, #10b981, #059669);
+  border: none;
+  border-radius: 12px;
+  color: #fff;
+  font-size: 20px;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+  transition: all 0.2s ease;
+}
+
+.mobileRefreshButton:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5);
+}
+
+.mobileRefreshButton:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .sidebarOverlay {
   display: none;
   position: fixed;
@@ -2112,6 +2141,12 @@
   }
 
   .mobileMenuButton {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .mobileRefreshButton {
     display: flex;
     align-items: center;
     justify-content: center;

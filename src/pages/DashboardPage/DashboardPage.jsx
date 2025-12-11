@@ -649,6 +649,16 @@ function DashboardPage() {
         ☰
       </button>
 
+      {/* Mobile Refresh Button */}
+      <button
+        className={styles.mobileRefreshButton}
+        onClick={fetchTasks}
+        disabled={isLoading}
+        title="Обновить задачи"
+      >
+        {isLoading ? "⏳" : "🔄"}
+      </button>
+
       <Sidebar
         tasks={tasks}
         categories={categories}
