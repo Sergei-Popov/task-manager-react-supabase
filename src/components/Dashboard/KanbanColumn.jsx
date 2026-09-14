@@ -3,7 +3,9 @@ import {
   SortableContext,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
+import { Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusIcon } from "@/lib/icons.jsx";
 import { cn } from "@/lib/utils";
@@ -19,6 +21,7 @@ function KanbanColumn({
   getCategoryInfo,
   getTimeRemaining,
   truncateText,
+  onCreate,
   tags = [],
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: status.id });
@@ -40,6 +43,16 @@ function KanbanColumn({
         <Badge variant="secondary" className="ml-auto">
           {tasks.length}
         </Badge>
+        {onCreate && (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => onCreate(status.id)}
+            aria-label={`Добавить задачу в «${status.name}»`}
+          >
+            <Plus />
+          </Button>
+        )}
       </header>
       <div ref={setNodeRef} className="flex flex-1 flex-col gap-3 p-3">
         {isLoading ? (

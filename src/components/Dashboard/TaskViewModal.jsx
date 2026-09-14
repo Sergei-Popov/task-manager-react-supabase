@@ -64,6 +64,7 @@ function TaskViewModal({
   isLoading,
   getCategoryInfo,
   getTimeRemaining,
+  onToggleSubtask,
 }) {
   const task = selectedTask;
   const status = task ? TASK_STATUSES[task.status] || TASK_STATUSES.todo : null;
@@ -138,10 +139,7 @@ function TaskViewModal({
               </DialogDescription>
             </DialogHeader>
 
-            <div
-              className="rounded-lg border-l-4 bg-muted/30 p-4"
-              style={{ borderLeftColor: task.color }}
-            >
+            <div className="rounded-lg border bg-muted/30 p-4">
               <TaskTags task={task} tags={tags} />
               {task.task_tags?.length === 0 || !task.task_tags ? (
                 <p className="text-sm text-muted-foreground">Тегов нет</p>
@@ -160,9 +158,17 @@ function TaskViewModal({
                         className="flex items-center gap-3 rounded-md border px-3 py-2 text-sm"
                       >
                         <Checkbox
+                          id={`view-subtask-${subtask.id}`}
                           checked={subtask.is_completed}
-                          disabled
-                          aria-hidden="true"
+                          disabled={!onToggleSubtask || isLoading}
+                          onCheckedChange={(checked) =>
+                            onToggleSubtask?.(
+                              task,
+                              subtask.id,
+                              checked === true,
+                            )
+                          }
+                          aria-label={subtask.text}
                         />
                         <span
                           className={cn(

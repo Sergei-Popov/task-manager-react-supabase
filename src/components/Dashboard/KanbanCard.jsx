@@ -22,7 +22,12 @@ export function KanbanCardBody({
     <>
       <div className="flex items-start gap-2">
         {dragHandle}
-        <span className="inline-flex min-w-0 flex-1 items-center gap-1 text-xs text-muted-foreground">
+        <span className="inline-flex min-w-0 flex-1 items-center gap-1.5 text-xs text-muted-foreground">
+          <span
+            className="size-2 shrink-0 rounded-full"
+            style={{ backgroundColor: task.color }}
+            aria-hidden="true"
+          />
           <span aria-hidden="true">{category.icon}</span>
           <span className="truncate">{category.name}</span>
         </span>
@@ -114,17 +119,11 @@ function KanbanCard({
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    borderLeftColor: task.color,
     opacity: isDragging ? 0.4 : 1,
   };
 
   return (
-    <Card
-      ref={setNodeRef}
-      style={style}
-      size="sm"
-      className="gap-2 border-l-4 p-3"
-    >
+    <Card ref={setNodeRef} style={style} size="sm" className="gap-2 p-3">
       <KanbanCardBody
         task={task}
         category={category}

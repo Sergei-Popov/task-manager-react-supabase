@@ -1,5 +1,12 @@
-import { AlertTriangle, CheckCircle2, Clock, ListTodo } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Clock,
+  ListTodo,
+  TrendingUp,
+} from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 
 const STATS = [
   {
@@ -24,8 +31,12 @@ const STATS = [
 ];
 
 function StatsGrid({ stats }) {
+  const percent = stats.total
+    ? Math.round((stats.completed / stats.total) * 100)
+    : 0;
+
   return (
-    <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-6">
       {STATS.map(({ key, label, icon, color }) => {
         const Icon = icon;
         return (
@@ -48,6 +59,24 @@ function StatsGrid({ stats }) {
           </Card>
         );
       })}
+
+      <Card size="sm" className="col-span-2">
+        <CardContent className="flex flex-col justify-center gap-2 p-4">
+          <div className="flex items-center justify-between gap-2">
+            <span className="inline-flex items-center gap-1.5 text-sm font-medium">
+              <TrendingUp
+                className="size-4 text-muted-foreground"
+                aria-hidden="true"
+              />
+              Выполнено
+            </span>
+            <span className="text-sm tabular-nums text-muted-foreground">
+              {stats.completed} из {stats.total} · {percent}%
+            </span>
+          </div>
+          <Progress value={percent} aria-label="Доля выполненных задач" />
+        </CardContent>
+      </Card>
     </div>
   );
 }

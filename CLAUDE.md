@@ -63,6 +63,9 @@ src/
   pages/DashboardPage/         весь стейт и вызовы API дашборда (один большой компонент)
   components/Dashboard/        презентационные компоненты дашборда + constants.js
   components/Dashboard/TaskForm.jsx  общая форма задачи для создания и редактирования
+  components/Dashboard/QuickAdd.jsx  быстрое добавление (текст + Enter, срок сегодня 18:00)
+  components/Dashboard/FilterBar.jsx сортировка, фильтр приоритета, «скрыть завершённые»
+  components/Dashboard/grouping.js   группы списка (Просрочено/Сегодня/Завтра/…), сортеры, defaultDeadline
   components/DateTimePicker/   свой пикер даты и времени
   utils/api.js                 единственная точка обращения к API (fetch + cookie)
   utils/validator.js           схема формы регистрации (fastest-validator)
@@ -122,7 +125,15 @@ docker-compose.yml, Dockerfile (web), server/Dockerfile, Caddyfile
 
 - Только shadcn/ui и Tailwind-утилиты, CSS-модулей больше нет. Классическая
   тема shadcn без своей палитры; цвета брать из токенов (`bg-primary`,
-  `text-muted-foreground`), не хардкодить.
+  `text-muted-foreground`), не хардкодить. Тёмная тема по умолчанию.
+- Строгий стиль по просьбе пользователя: никаких цветных полосок на карточках,
+  градиентов и свечений. Цвет задачи показывается только маленькой точкой
+  (`size-2 rounded-full`), цвета тегов только в Badge.
+- Фичи дашборда: быстрое добавление, список сгруппирован по срокам, сортировка
+  и фильтры, кружок «выполнено» на карточке (`DoneToggle`), прогресс подзадач,
+  отметка подзадач прямо в просмотре (`toggleSubtask` шлёт полный список),
+  «+» в колонке канбана (`openCreateWithStatus`) и в дне календаря
+  (`openCreateAt`), горячие клавиши `N` (новая задача) и `/` (поиск).
 - Иконки только Lucide. Эмодзи остаются лишь у категорий: это данные
   пользователя (иконку выбирают в `CategoryModal`).
 - Импорт компонентов через alias `@/` (`jsconfig.json` + `vite.config.js`).
@@ -133,9 +144,8 @@ docker-compose.yml, Dockerfile (web), server/Dockerfile, Caddyfile
   `SidebarTrigger`.
 - Подтверждения удаления через `ConfirmDialog` (`setConfirm({...})` в
   DashboardPage), уведомления через `toast` из sonner.
-- В `.map` с компонентом-иконкой писать `const Icon = icon;` в теле, а не
-  `({ icon: Icon })` в параметрах: `no-unused-vars` с этим конфигом не видит
-  использование в JSX для параметров функций.
+- В ESLint включены `react/jsx-uses-vars` и `react/jsx-no-undef`: без них
+  неизвестный компонент в JSX (например, забытый импорт иконки) не ловится.
 
 ## Соглашения
 

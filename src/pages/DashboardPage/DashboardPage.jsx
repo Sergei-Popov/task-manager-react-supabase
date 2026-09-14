@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import api from "../../utils/api.js";
 import { toast } from "sonner";
 import {
@@ -11,6 +11,7 @@ import {
   Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   Empty,
   EmptyDescription,
@@ -33,6 +34,14 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import ConfirmDialog from "../../components/ConfirmDialog.jsx";
+import QuickAdd from "../../components/Dashboard/QuickAdd.jsx";
+import FilterBar from "../../components/Dashboard/FilterBar.jsx";
+import {
+  groupTasks,
+  SORTERS,
+  defaultDeadline,
+  toLocalIso,
+} from "../../components/Dashboard/grouping.js";
 import ThemeToggle from "../../components/ThemeToggle.jsx";
 import {
   Sidebar,
@@ -63,6 +72,10 @@ function DashboardPage() {
   const [selectedTask, setSelectedTask] = useState(null);
   const [filter, setFilter] = useState("all");
   const [confirm, setConfirm] = useState(null); // диалог подтверждения
+  const [sortBy, setSortBy] = useState("deadline");
+  const [priorityFilter, setPriorityFilter] = useState("all");
+  const [hideCompleted, setHideCompleted] = useState(false);
+  const searchRef = useRef(null);
   const [isLoading, setIsLoading] = useState(true);
   const [userEmail, setUserEmail] = useState("");
   const [viewMode, setViewMode] = useState("list"); // "list" или "kanban"
@@ -79,6 +92,28 @@ function DashboardPage() {
       .me()
       .then((user) => setUserEmail(user?.email || ""))
       .catch((error) => console.error("Ошибка загрузки профиля:", error));
+  }, []);
+
+  // Горячие клавиши: N — новая задача, / — поиск
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      const target = e.target;
+      const typing =
+        target instanceof HTMLElement &&
+        (target.isContentEditable ||
+          ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
+      if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (document.querySelector("[role=dialog], [role=alertdialog]")) return;
+      if (e.key === "n" || e.key === "N" || e.key === "т" || e.key === "Т") {
+        e.preventDefault();
+        setIsModalOpen(true);
+      } else if (e.key === "/") {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
   const fetchCategories = async () => {
@@ -167,6 +202,70 @@ function DashboardPage() {
       console.error("Ошибка обновления статуса:", error);
       toast.error(error.message || "Не удалось обновить статус");
     }
+  };
+
+  // Быстрое добавление: только текст, остальное по умолчанию
+  const quickAdd = async (text) => {
+    try {
+      const createdTask = await api.tasks.create({
+        text,
+        deadline: defaultDeadline(),
+        category:
+          filter !== "all" &&
+          !["todo", "in_progress", "completed"].includes(filter)
+            ? filter
+            : "work",
+        subtasks: [],
+        tags: [],
+      });
+      setTasks((prev) => [...prev, createdTask]);
+      toast.success("Задача добавлена", {
+        description:
+          "Срок: " +
+          new Date(createdTask.deadline).toLocaleString("ru-RU", {
+            day: "numeric",
+            month: "long",
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+      });
+      return true;
+    } catch (error) {
+      console.error("Ошибка быстрого добавления:", error);
+      toast.error(error.message || "Не удалось добавить задачу");
+      return false;
+    }
+  };
+
+  const toggleDone = (task) =>
+    updateTaskStatus(task.id, task.status === "done" ? "todo" : "done");
+
+  // Отметить подзадачу прямо из просмотра: отправляем полный список подзадач
+  const toggleSubtask = async (task, subtaskId, checked) => {
+    const subtasks = [...(task.subtasks || [])]
+      .sort((a, b) => a.position - b.position)
+      .map((s) => ({
+        text: s.text,
+        is_completed: s.id === subtaskId ? checked : s.is_completed,
+      }));
+    try {
+      const updatedTask = await api.tasks.update(task.id, { subtasks });
+      setTasks((prev) => prev.map((t) => (t.id === task.id ? updatedTask : t)));
+      setSelectedTask((prev) => (prev?.id === task.id ? updatedTask : prev));
+    } catch (error) {
+      console.error("Ошибка обновления подзадачи:", error);
+      toast.error(error.message || "Не удалось обновить подзадачу");
+    }
+  };
+
+  const openCreateWithStatus = (status) => {
+    setNewTask({ ...INITIAL_TASK_STATE, status });
+    setIsModalOpen(true);
+  };
+
+  const openCreateAt = (date) => {
+    setNewTask({ ...INITIAL_TASK_STATE, deadline: toLocalIso(date) });
+    setIsModalOpen(true);
   };
 
   const deleteTask = (id) => {
@@ -275,7 +374,13 @@ function DashboardPage() {
       if (filter === "todo") return task.status === "todo";
       return task.category === filter;
     })
-    .sort((a, b) => new Date(a.deadline) - new Date(b.deadline));
+    .filter(
+      (task) => priorityFilter === "all" || task.priority === priorityFilter,
+    )
+    .filter((task) => !hideCompleted || task.status !== "done")
+    .sort(SORTERS[sortBy] || SORTERS.deadline);
+
+  const groupedTasks = groupTasks(filteredTasks);
 
   const getTimeRemaining = (deadline) => {
     const now = new Date();
@@ -524,6 +629,7 @@ function DashboardPage() {
                 aria-hidden="true"
               />
               <Input
+                ref={searchRef}
                 type="search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -556,11 +662,26 @@ function DashboardPage() {
           </div>
         </header>
 
-        <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
+        <div className="flex flex-1 flex-col gap-5 p-4 sm:p-6">
+          <QuickAdd
+            onAdd={quickAdd}
+            onOpenFull={() => setIsModalOpen(true)}
+            disabled={isLoading && tasks.length === 0}
+          />
+
           <StatsGrid stats={stats} />
 
           {viewMode === "list" && (
-            <section aria-label="Список задач" className="flex flex-col gap-3">
+            <section aria-label="Список задач" className="flex flex-col gap-4">
+              <FilterBar
+                sortBy={sortBy}
+                setSortBy={setSortBy}
+                priorityFilter={priorityFilter}
+                setPriorityFilter={setPriorityFilter}
+                hideCompleted={hideCompleted}
+                setHideCompleted={setHideCompleted}
+                total={filteredTasks.length}
+              />
               {isLoading && tasks.length === 0 ? (
                 <>
                   <Skeleton className="h-28 w-full" />
@@ -592,19 +713,39 @@ function DashboardPage() {
                   )}
                 </Empty>
               ) : (
-                filteredTasks.map((task) => (
-                  <TaskCard
-                    key={task.id}
-                    task={task}
-                    category={getCategoryInfo(task.category)}
-                    timeRemaining={getTimeRemaining(task.deadline)}
-                    onStatusChange={updateTaskStatus}
-                    onView={openTaskView}
-                    onEdit={openEditMode}
-                    onDelete={deleteTask}
-                    truncateText={truncateText}
-                    tags={tags}
-                  />
+                groupedTasks.map((group) => (
+                  <div key={group.id} className="flex flex-col gap-2">
+                    <h3
+                      className={cn(
+                        "flex items-center gap-2 px-1 text-xs font-semibold tracking-wide uppercase",
+                        group.tone === "destructive"
+                          ? "text-destructive"
+                          : group.tone === "primary"
+                            ? "text-foreground"
+                            : "text-muted-foreground",
+                      )}
+                    >
+                      {group.title}
+                      <span className="rounded-full bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+                        {group.tasks.length}
+                      </span>
+                    </h3>
+                    {group.tasks.map((task) => (
+                      <TaskCard
+                        key={task.id}
+                        task={task}
+                        category={getCategoryInfo(task.category)}
+                        timeRemaining={getTimeRemaining(task.deadline)}
+                        onStatusChange={updateTaskStatus}
+                        onToggleDone={toggleDone}
+                        onView={openTaskView}
+                        onEdit={openEditMode}
+                        onDelete={deleteTask}
+                        truncateText={truncateText}
+                        tags={tags}
+                      />
+                    ))}
+                  </div>
                 ))
               )}
             </section>
@@ -621,12 +762,17 @@ function DashboardPage() {
               getCategoryInfo={getCategoryInfo}
               getTimeRemaining={getTimeRemaining}
               truncateText={truncateText}
+              onCreate={openCreateWithStatus}
               tags={tags}
             />
           )}
 
           {viewMode === "calendar" && (
-            <CalendarView tasks={filteredTasks} onView={openTaskView} />
+            <CalendarView
+              tasks={filteredTasks}
+              onView={openTaskView}
+              onCreateAt={openCreateAt}
+            />
           )}
         </div>
       </SidebarInset>
@@ -659,6 +805,7 @@ function DashboardPage() {
         isLoading={isLoading}
         getCategoryInfo={getCategoryInfo}
         getTimeRemaining={getTimeRemaining}
+        onToggleSubtask={toggleSubtask}
       />
 
       <CategoryModal

@@ -4,6 +4,7 @@ import {
   CalendarX2,
   ChevronLeft,
   ChevronRight,
+  Plus,
   Repeat,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -37,7 +38,7 @@ const timeOf = (value) =>
 const isOverdue = (task) =>
   task.status !== "done" && new Date(task.deadline) < new Date();
 
-function CalendarView({ tasks, onView }) {
+function CalendarView({ tasks, onView, onCreateAt }) {
   const [currentDate, setCurrentDate] = useState(new Date());
 
   const year = currentDate.getFullYear();
@@ -80,12 +81,16 @@ function CalendarView({ tasks, onView }) {
       onClick={() => onView(task)}
       title={task.text}
       className={cn(
-        "flex w-full items-center gap-1.5 rounded-md border-l-2 bg-muted/60 px-1.5 py-1 text-left text-xs transition-colors hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
+        "flex w-full items-center gap-1.5 rounded-md bg-muted/60 px-1.5 py-1 text-left text-xs transition-colors hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
         task.status === "done" && "text-muted-foreground line-through",
         !full && "min-w-0",
       )}
-      style={{ borderLeftColor: task.color }}
     >
+      <span
+        className="size-1.5 shrink-0 rounded-full"
+        style={{ backgroundColor: task.color }}
+        aria-hidden="true"
+      />
       <span className="shrink-0 tabular-nums text-muted-foreground">
         {timeOf(task.deadline)}
       </span>
@@ -165,19 +170,34 @@ function CalendarView({ tasks, onView }) {
               <div
                 key={day}
                 className={cn(
-                  "flex min-h-28 flex-col gap-1 border-r border-b p-1.5 [&:nth-child(7n)]:border-r-0",
+                  "group/day flex min-h-28 flex-col gap-1 border-r border-b p-1.5 [&:nth-child(7n)]:border-r-0",
                   isToday(day) && "bg-primary/10",
                   overdue && "bg-destructive/10",
                 )}
               >
-                <span
-                  className={cn(
-                    "mb-0.5 inline-flex size-6 items-center justify-center rounded-full text-xs font-semibold",
-                    isToday(day) && "bg-primary text-primary-foreground",
+                <div className="flex items-center justify-between">
+                  <span
+                    className={cn(
+                      "inline-flex size-6 items-center justify-center rounded-full text-xs font-semibold",
+                      isToday(day) && "bg-primary text-primary-foreground",
+                    )}
+                  >
+                    {day}
+                  </span>
+                  {onCreateAt && (
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      className="opacity-0 transition-opacity group-hover/day:opacity-100 focus-visible:opacity-100"
+                      onClick={() =>
+                        onCreateAt(new Date(year, month, day, 12, 0, 0))
+                      }
+                      aria-label={`Добавить задачу на ${day} ${MONTHS[month].toLowerCase()}`}
+                    >
+                      <Plus />
+                    </Button>
                   )}
-                >
-                  {day}
-                </span>
+                </div>
                 {dayTasks.slice(0, 3).map((task) => (
                   <TaskChip key={task.id} task={task} />
                 ))}

@@ -25,6 +25,7 @@ function KanbanBoard({
   getCategoryInfo,
   getTimeRemaining,
   truncateText,
+  onCreate,
   tags = [],
 }) {
   const [activeTask, setActiveTask] = useState(null);
@@ -81,6 +82,7 @@ function KanbanBoard({
             getCategoryInfo={getCategoryInfo}
             getTimeRemaining={getTimeRemaining}
             truncateText={truncateText}
+            onCreate={onCreate}
             tags={tags}
           />
         ))}
@@ -88,11 +90,7 @@ function KanbanBoard({
 
       <DragOverlay dropAnimation={null}>
         {activeTask ? (
-          <Card
-            size="sm"
-            className="gap-2 border-l-4 p-3 shadow-xl ring-2 ring-primary/40"
-            style={{ borderLeftColor: activeTask.color }}
-          >
+          <Card size="sm" className="gap-2 p-3 shadow-xl ring-2 ring-ring/40">
             <KanbanCardBody
               task={activeTask}
               category={getCategoryInfo(activeTask.category)}
