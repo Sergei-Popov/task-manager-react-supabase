@@ -1,7 +1,7 @@
 import { useState } from "react";
 import styles from "../../pages/DashboardPage/DashboardPage.module.css";
 
-function CalendarView({ tasks, onView, onEdit, onStatusChange, tags = [] }) {
+function CalendarView({ tasks, onView }) {
   const [currentDate, setCurrentDate] = useState(new Date());
 
   const year = currentDate.getFullYear();

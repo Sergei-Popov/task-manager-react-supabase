@@ -23,13 +23,26 @@ function DateTimePicker({
   onChange,
   placeholder = "Выберите дату и время",
 }) {
+  const initialDate = value ? new Date(value) : null;
   const [isOpen, setIsOpen] = useState(false);
-  const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState(null);
-  const [selectedTime, setSelectedTime] = useState({ hours: 12, minutes: 0 });
+  const [currentMonth, setCurrentMonth] = useState(() =>
+    initialDate
+      ? new Date(initialDate.getFullYear(), initialDate.getMonth(), 1)
+      : new Date(),
+  );
+  const [selectedDate, setSelectedDate] = useState(initialDate);
+  const [selectedTime, setSelectedTime] = useState(() =>
+    initialDate
+      ? { hours: initialDate.getHours(), minutes: initialDate.getMinutes() }
+      : { hours: 12, minutes: 0 },
+  );
+  const [syncedValue, setSyncedValue] = useState(value);
   const pickerRef = useRef(null);
 
-  useEffect(() => {
+  // Синхронизируем внутреннее состояние с внешним value прямо во время
+  // рендера (рекомендованный React паттерн вместо setState внутри эффекта).
+  if (value !== syncedValue) {
+    setSyncedValue(value);
     if (value) {
       const date = new Date(value);
       setSelectedDate(date);
@@ -39,7 +52,7 @@ function DateTimePicker({
       });
       setCurrentMonth(new Date(date.getFullYear(), date.getMonth(), 1));
     }
-  }, [value]);
+  }
 
   useEffect(() => {
     const handleClickOutside = (event) => {

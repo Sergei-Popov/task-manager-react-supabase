@@ -16,6 +16,18 @@ import {
   INITIAL_CATEGORY_STATE,
 } from "../../components/Dashboard";
 
+// PostgREST иногда отвечает PGRST303 ("JWT issued at future") на запрос,
+// сделанный в ту же секунду, что и выдача токена (сразу после входа).
+// В этом случае повторяем запрос через секунду.
+const RETRY_DELAY_MS = 1000;
+const isJwtClockSkew = (error) => error?.code === "PGRST303";
+const withClockSkewRetry = async (run) => {
+  const result = await run();
+  if (!isJwtClockSkew(result.error)) return result;
+  await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+  return run();
+};
+
 function DashboardPage() {
   const [tasks, setTasks] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -52,11 +64,13 @@ function DashboardPage() {
 
       if (!user) return;
 
-      const { data, error } = await supabaseClient
-        .from("categories")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: true });
+      const { data, error } = await withClockSkewRetry(() =>
+        supabaseClient
+          .from("categories")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: true }),
+      );
 
       if (error) {
         console.error("Ошибка загрузки категорий:", error);
@@ -77,11 +91,13 @@ function DashboardPage() {
 
       if (!user) return;
 
-      const { data, error } = await supabaseClient
-        .from("tags")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: true });
+      const { data, error } = await withClockSkewRetry(() =>
+        supabaseClient
+          .from("tags")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: true }),
+      );
 
       if (error) {
         console.error("Ошибка загрузки тегов:", error);
@@ -109,17 +125,19 @@ function DashboardPage() {
       setUserEmail(user.email || "");
 
       // Загружаем задачи с подзадачами и тегами
-      const { data, error } = await supabaseClient
-        .from("tasks")
-        .select(
-          `
+      const { data, error } = await withClockSkewRetry(() =>
+        supabaseClient
+          .from("tasks")
+          .select(
+            `
           *,
           subtasks (id, text, is_completed, position),
           task_tags (tag_id)
         `,
-        )
-        .eq("user_id", user.id)
-        .order("deadline", { ascending: true });
+          )
+          .eq("user_id", user.id)
+          .order("deadline", { ascending: true }),
+      );
 
       if (error) {
         console.error("Ошибка загрузки задач:", error);
@@ -796,13 +814,7 @@ function DashboardPage() {
 
         {/* Calendar View */}
         {viewMode === "calendar" && (
-          <CalendarView
-            tasks={tasks}
-            onView={openTaskView}
-            onEdit={openEditMode}
-            onStatusChange={updateTaskStatus}
-            tags={tags}
-          />
+          <CalendarView tasks={tasks} onView={openTaskView} />
         )}
       </main>
 

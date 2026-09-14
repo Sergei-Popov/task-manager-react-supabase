@@ -41,10 +41,30 @@ export const RegistrationPage = () => {
         form.reset();
         return;
       }
-      if (data) {
+
+      // Если в Supabase включено подтверждение email, для уже существующего
+      // адреса возвращается "пустой" пользователь без identities.
+      if (data?.user && data.user.identities?.length === 0) {
+        setMessage(
+          "Пользователь с таким email уже зарегистрирован. Попробуйте войти.",
+        );
+        setLoading(false);
+        return;
+      }
+
+      // Сессия есть — подтверждение email выключено, сразу в приложение.
+      if (data?.session) {
         setLoading(false);
         navigate("/dashboard");
+        return;
       }
+
+      // Сессии нет — Supabase отправил письмо с подтверждением.
+      setMessage(
+        "Мы отправили письмо со ссылкой для подтверждения. Перейдите по ней, а затем войдите.",
+      );
+      form.reset();
+      setLoading(false);
     } else {
       // Если валидация не прошла
       setTimeout(() => setLoading(false), 500);
