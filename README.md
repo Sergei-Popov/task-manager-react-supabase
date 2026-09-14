@@ -28,6 +28,15 @@ Dockerfile           сборка фронтенда и образ Caddy
 Caddyfile            статика + прокси /api → api:3000
 ```
 
+## Документация и правила для ИИ
+
+- `docs/ARCHITECTURE.md`, `docs/API.md`, `docs/DEVELOPMENT.md`, `docs/TESTING.md`,
+  `docs/DEPLOYMENT.md` — устройство, эндпоинты, разработка, проверка, деплой.
+- `CONTEXT.md` — глоссарий терминов, `docs/adr/` — принятые решения.
+- `CLAUDE.md`, `AGENTS.md`, `docs/AI-RULES.md` — правила для ИИ-агентов.
+- Команды Claude Code: `/feature <описание>`, `/bugfix <описание>`, `/verify`,
+  `/ship`, а также `/grill-me`, `/grill-with-docs` для интервью по задаче.
+
 ## Локальная разработка
 
 Нужны Node 22+ и Docker-совместимый движок (Docker Desktop, OrbStack или

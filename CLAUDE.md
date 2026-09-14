@@ -13,6 +13,30 @@ Node API и PostgreSQL. Задачи с дедлайнами, подзадача
 полностью удалён: авторизация, БД и API теперь свои. Не возвращать Supabase и не
 предлагать BaaS.
 
+## Рабочий процесс (обязательно)
+
+Полные правила: `docs/AI-RULES.md`. Кратко:
+
+1. **Сначала понять, потом делать.** Любая фича или баг начинается с интервью
+   через навык `grilling` (команды `/feature`, `/bugfix`, `/grill-me`,
+   `/grill-with-docs`). Вопросы раундами с рекомендуемым ответом; факты о коде
+   агент выясняет сам. Реализация только после подтверждения пользователя.
+   Фичи фиксируются в `docs/specs/`.
+2. **Термины из `CONTEXT.md`**, решения из `docs/adr/` не нарушать. Новые термины
+   и важные решения записывать туда же (навык `domain-modeling`).
+3. **Каждое изменение проверяется в браузере**: `/verify` по `docs/TESTING.md`
+   (lint, build, сценарий, скриншоты на 1280 и 390 px, которые нужно открыть и
+   посмотреть, консоль без ошибок). Найденное исправить и проверить заново.
+   Отчёт без реальной проверки запрещён.
+4. **Баги** диагностируются по навыку `diagnosing-bugs`: сначала повторяемый
+   сигнал, потом гипотезы, потом фикс.
+5. **Выкладка** через `/ship`: lint, build, `docker compose up -d --build`,
+   проверка на :8080, коммит; пуш только по явной просьбе.
+
+Документация: `docs/ARCHITECTURE.md`, `docs/API.md`, `docs/DEVELOPMENT.md`,
+`docs/TESTING.md`, `docs/DEPLOYMENT.md`. Обновлять при изменении API,
+архитектуры и процессов.
+
 ## Стек
 
 | Слой     | Технологии                                                              |
@@ -22,7 +46,8 @@ Node API и PostgreSQL. Задачи с дедлайнами, подзадача
 | Auth     | Своя: email + пароль, scrypt из `node:crypto`, сессии в httpOnly-cookie |
 | БД       | PostgreSQL 17, SQL-миграции, применяются при старте API                 |
 | Деплой   | Docker Compose: `db` + `api` + `web` (Caddy отдаёт SPA и проксирует /api) |
-| Качество | ESLint 9 (flat config), Prettier; тестов в проекте нет                  |
+| Качество | ESLint 9 (flat config), Prettier; автотестов нет, проверка по `docs/TESTING.md` |
+| Навыки   | `.agents/skills/` (grilling, grill-me, grill-with-docs, domain-modeling, diagnosing-bugs), `.claude/skills/` (feature, bugfix, verify, ship) |
 
 ## Команды
 
