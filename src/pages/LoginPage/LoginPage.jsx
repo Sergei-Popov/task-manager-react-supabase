@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import styles from "./LoginPage.module.css";
-import supabaseClient from "../../utils/supabaseClient.js";
+import api from "../../utils/api.js";
 
 const LoginPage = () => {
   const [message, setMessage] = useState("");
@@ -17,20 +17,16 @@ const LoginPage = () => {
     const formData = new FormData(form);
     const user = Object.fromEntries(formData);
 
-    const { data, error } = await supabaseClient.auth.signInWithPassword({
-      email: user?.email?.toString() || "",
-      password: user?.password?.toString() || "",
-    });
-
-    if (error) {
-      setLoading(false);
-      setMessage(error.message);
-      return;
-    }
-
-    if (data) {
-      setLoading(false);
+    try {
+      await api.auth.login(
+        user?.email?.toString() || "",
+        user?.password?.toString() || "",
+      );
       navigate("/dashboard");
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      setLoading(false);
     }
   };
 

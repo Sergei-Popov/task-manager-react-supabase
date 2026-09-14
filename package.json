@@ -1,5 +1,5 @@
 {
-  "name": "task-manager-react+supabase",
+  "name": "task-manager-react-postgres",
   "private": false,
   "version": "0.1.0",
   "type": "module",
@@ -8,17 +8,14 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "db:start": "supabase start",
-    "db:stop": "supabase stop",
-    "db:reset": "supabase db reset",
-    "db:status": "supabase status",
-    "db:push": "supabase db push"
+    "dev:api": "npm --prefix server run dev",
+    "dev:all": "concurrently -n web,api -c cyan,green \"npm run dev\" \"npm run dev:api\"",
+    "postinstall": "test ! -f server/package.json || npm --prefix server install"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
-    "@supabase/supabase-js": "^2.86.2",
     "fastest-validator": "^1.19.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
@@ -29,6 +26,7 @@
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",
+    "concurrently": "^10.0.5",
     "eslint": "^9.39.1",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",

@@ -1,19 +1,18 @@
 import { useNavigate } from "react-router-dom";
 
 import styles from "./SingOutButton.module.css";
-import supabaseClient from "../../utils/supabaseClient.js";
+import api from "../../utils/api.js";
 
 function SingOutButton() {
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
-    // Сначала уходим на лендинг, чтобы защищённая обёртка Dashboard
-    // не успела перекинуть на /login при событии SIGNED_OUT.
-    navigate("/", { replace: true });
-    const { error } = await supabaseClient.auth.signOut();
-    if (error) {
+    try {
+      await api.auth.logout();
+    } catch (error) {
       console.error("Ошибка при выходе из аккаунта:", error.message);
     }
+    navigate("/", { replace: true });
   };
 
   return (

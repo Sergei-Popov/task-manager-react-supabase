@@ -4,7 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { validateRegistrationForm } from "../../utils/validator.js";
 
 import styles from "./RegistrationPage.module.css";
-import supabaseClient from "../../utils/supabaseClient.js";
+import api from "../../utils/api.js";
 
 export const RegistrationPage = () => {
   const [message, setMessage] = useState("");
@@ -29,42 +29,17 @@ export const RegistrationPage = () => {
       // Если валидация прошла успешно
       setLoading(true);
       setErrors({});
-      // Регистрируем пользователя в Supabase
-      const { data, error } = await supabaseClient.auth.signUp({
-        email: user.email.toString() || "",
-        password: user.password.toString() || "",
-      });
-      if (error) {
+      try {
+        await api.auth.register(
+          user.email.toString() || "",
+          user.password.toString() || "",
+        );
+        navigate("/dashboard");
+      } catch (error) {
         console.error("Ошибка регистрации:", error);
         setMessage(error.message);
-        setTimeout(() => setLoading(false), 500);
-        form.reset();
-        return;
-      }
-
-      // Если в Supabase включено подтверждение email, для уже существующего
-      // адреса возвращается "пустой" пользователь без identities.
-      if (data?.user && data.user.identities?.length === 0) {
-        setMessage(
-          "Пользователь с таким email уже зарегистрирован. Попробуйте войти.",
-        );
         setLoading(false);
-        return;
       }
-
-      // Сессия есть — подтверждение email выключено, сразу в приложение.
-      if (data?.session) {
-        setLoading(false);
-        navigate("/dashboard");
-        return;
-      }
-
-      // Сессии нет — Supabase отправил письмо с подтверждением.
-      setMessage(
-        "Мы отправили письмо со ссылкой для подтверждения. Перейдите по ней, а затем войдите.",
-      );
-      form.reset();
-      setLoading(false);
     } else {
       // Если валидация не прошла
       setTimeout(() => setLoading(false), 500);

@@ -1,0 +1,16 @@
+# SITE_ADDRESS задаётся в .env:
+#   :80                — просто HTTP по IP-адресу сервера
+#   tasks.example.com  — Caddy сам получит HTTPS-сертификат Let's Encrypt
+{$SITE_ADDRESS::80} {
+	encode gzip zstd
+
+	handle /api/* {
+		reverse_proxy api:3000
+	}
+
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}

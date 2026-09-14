@@ -1,0 +1,21 @@
+{
+  "name": "task-manager-api",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch --env-file-if-exists=../.env src/index.js",
+    "migrate": "node --env-file-if-exists=../.env src/migrate.js"
+  },
+  "dependencies": {
+    "cookie": "^1.0.2",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.1.0",
+    "fastest-validator": "^1.19.1",
+    "pg": "^8.16.3"
+  }
+}

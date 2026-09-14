@@ -1,111 +1,125 @@
 # Менеджер задач "Мои задачи"
 
-React + Vite + Supabase (Postgres, Auth, RLS). Задачи с дедлайнами, подзадачами,
-тегами, категориями, повторением; список, канбан и календарь.
+React + Vite на фронтенде, свой Node API и PostgreSQL на бэкенде, всё упаковано
+в Docker Compose и разворачивается на любом VPS одной командой. Задачи с
+дедлайнами, подзадачами, тегами, категориями и повторением; список, канбан и
+календарь.
 
 ## Стек
 
-- Frontend: React 19, Vite 7, react-router 7, @dnd-kit
-- Backend: Supabase (PostgreSQL + Auth + PostgREST), схема лежит в `supabase/migrations`
-- Хостинг: Vercel (frontend) + Supabase Cloud (БД и auth)
+| Слой      | Технологии                                              |
+| --------- | ------------------------------------------------------- |
+| Frontend  | React 19, Vite 7, react-router 7, @dnd-kit               |
+| API       | Node 22, Express 5, `pg`, fastest-validator (`server/`)  |
+| Auth      | Своя: email + пароль (scrypt), сессии в httpOnly-cookie  |
+| БД        | PostgreSQL 17, SQL-миграции в `server/migrations`        |
+| Хостинг   | Docker Compose: Postgres + API + Caddy (статика, HTTPS)  |
 
-## Локальный запуск (полностью локальный Supabase)
+## Структура
 
-Нужны Node 20+, Docker-совместимый движок и Supabase CLI
-(`brew install supabase/tap/supabase`).
+```
+src/                 фронтенд (React)
+src/utils/api.js     клиент нашего API (fetch + cookie)
+server/src/          Express-приложение
+server/migrations/   SQL-миграции, применяются при старте API
+docker-compose.yml   db + api + web
+Dockerfile           сборка фронтенда и образ Caddy
+Caddyfile            статика + прокси /api → api:3000
+```
 
-Подойдёт Docker Desktop, OrbStack или Colima. Если Docker Desktop не стартует
-(на этой машине он не поднимал сетевой мост VM), используйте Colima:
+## Локальная разработка
+
+Нужны Node 22+ и Docker-совместимый движок (Docker Desktop, OrbStack или
+Colima). Если Docker Desktop не стартует, используйте Colima:
 
 ```bash
 brew install colima
 colima start --cpu 4 --memory 8 --vm-type vz --mount-type virtiofs
 docker context use colima
-# Supabase CLI смотрит на DOCKER_HOST, поэтому перед db:* командами:
-export DOCKER_HOST=unix://$HOME/.colima/default/docker.sock
 ```
+
+Запуск:
 
 ```bash
-npm install
-npm run db:start          # поднимает Postgres, Auth, PostgREST, Studio в Docker
-                          # и применяет миграции из supabase/migrations
-cp .env.example .env.local
-# подставьте в .env.local значения API URL и anon key, которые напечатал db:start
-npm run dev               # http://localhost:5173
+npm install                # ставит зависимости и фронтенда, и server/
+cp .env.example .env       # задайте POSTGRES_PASSWORD
+docker compose up -d db    # только Postgres, порт 127.0.0.1:5432
+npm run dev:all            # API на :3001 и Vite на :5173 в одном терминале
 ```
 
-Полезные адреса локального стека:
+Или в двух терминалах: `npm run dev:api` и `npm run dev`. Vite проксирует
+`/api` на `http://127.0.0.1:3001`. API читает `.env` из корня и сам
+применяет миграции при старте.
 
-| Что            | Адрес                      |
-| -------------- | -------------------------- |
-| API (Supabase) | http://127.0.0.1:54321     |
-| Studio         | http://127.0.0.1:54323     |
-| Почта (Mailpit)| http://127.0.0.1:54324     |
-| Postgres       | postgresql://postgres:postgres@127.0.0.1:54322/postgres |
-
-Другие команды:
+Полезное:
 
 ```bash
-npm run db:status   # показать URL и ключи
-npm run db:reset    # пересоздать БД и заново применить миграции
-npm run db:stop     # остановить контейнеры
+npm run lint                     # eslint для фронтенда и сервера
+npm run build                    # сборка фронтенда в dist/
+psql "$DATABASE_URL"             # консоль БД (DATABASE_URL из .env)
+docker compose logs -f api       # логи API в Docker
 ```
 
-Сразу после входа PostgREST иногда отвечает `PGRST303 "JWT issued at future"`
-(токен выдан в ту же секунду, что и запрос). Приложение повторяет такой запрос
-через секунду, так что в консоли может мелькнуть один 401 — это ожидаемо.
+## API
 
-Локально подтверждение email выключено (`supabase/config.toml`,
-`[auth.email] enable_confirmations = false`), поэтому регистрация сразу
-пускает в приложение. Если включить подтверждение, письма ловит Mailpit.
+Все ответы в JSON. Сессия хранится в cookie `tm_session` (httpOnly,
+SameSite=Lax, 30 дней). Изменяющие запросы принимаются только с
+`Content-Type: application/json`.
+
+| Метод  | Путь                    | Описание                                     |
+| ------ | ----------------------- | -------------------------------------------- |
+| POST   | `/api/auth/register`    | `{email, password}` → `{user}`, ставит cookie |
+| POST   | `/api/auth/login`       | `{email, password}` → `{user}`               |
+| POST   | `/api/auth/logout`      | удаляет сессию                               |
+| GET    | `/api/auth/me`          | `{user}` или `{user: null}`                  |
+| GET    | `/api/tasks`            | задачи с `subtasks` и `task_tags`            |
+| POST   | `/api/tasks`            | создать задачу (с подзадачами и тегами)      |
+| PATCH  | `/api/tasks/:id`        | обновить поля; `subtasks`/`tags` заменяются  |
+| DELETE | `/api/tasks/:id`        | удалить                                      |
+| GET/POST/PATCH/DELETE | `/api/categories[/:id]` | категории                     |
+| GET/POST/PATCH/DELETE | `/api/tags[/:id]`       | теги                          |
+
+Каждый пользователь видит и меняет только свои данные: все запросы
+фильтруются по `user_id` из сессии.
 
 ## Схема БД
 
-`supabase/migrations/20260914000000_init_schema.sql`:
+`server/migrations/0001_init.sql`: `users`, `sessions`, `categories`, `tags`,
+`tasks`, `subtasks`, `task_tags`. Новые изменения добавляйте файлом
+`server/migrations/0002_<name>.sql`; раннер применяет их по порядку и
+запоминает применённые в `schema_migrations`.
 
-- `categories` — пользовательские категории (name, icon)
-- `tags` — теги (name, color)
-- `tasks` — задачи (text, deadline, category, color, status, priority, повторение)
-- `subtasks` — подзадачи задачи (text, is_completed, position)
-- `task_tags` — связь задач и тегов
+## Публикация на VPS
 
-На всех таблицах включён RLS: пользователь видит и меняет только свои строки.
-Новые изменения схемы добавляйте новой миграцией:
-`supabase migration new <name>`, затем `npm run db:reset` локально
-и `npm run db:push` в облако.
+Подойдёт любой сервер с Docker (Ubuntu 22.04+, 1 CPU / 1 ГБ RAM достаточно).
 
-## Публикация (Vercel + Supabase Cloud)
+```bash
+# на сервере
+curl -fsSL https://get.docker.com | sh          # если Docker ещё нет
+git clone https://github.com/Sergei-Popov/task-manager-react-supabase.git
+cd task-manager-react-supabase
+cp .env.example .env
+nano .env   # POSTGRES_PASSWORD — длинная случайная строка
+            # SITE_ADDRESS — домен (tasks.example.com) или :80 для работы по IP
+docker compose up -d --build
+```
 
-1. Создайте проект на https://supabase.com/dashboard (регион любой, пароль БД сохраните).
-2. Привяжите локальный репозиторий к проекту и накатите миграции:
+Через минуту приложение доступно на `http://<ip-сервера>` или по домену.
+С доменом Caddy сам получает и продлевает сертификат Let's Encrypt, нужно лишь
+направить A-запись домена на сервер и открыть порты 80 и 443.
 
-   ```bash
-   supabase login
-   supabase link --project-ref <project-ref>   # ref из URL панели
-   npm run db:push
-   ```
+Обновление:
 
-3. В панели Supabase: Authentication → URL Configuration:
-   - Site URL: `https://<ваш-домен>.vercel.app`
-   - Redirect URLs: тот же адрес.
+```bash
+git pull
+docker compose up -d --build
+```
 
-   Authentication → Providers → Email: если хотите регистрацию без письма,
-   выключите "Confirm email". Если оставить включённым, приложение после
-   регистрации покажет "проверьте почту", а вход станет доступен после
-   перехода по ссылке из письма.
+Бэкап базы:
 
-4. На Vercel задайте переменные окружения (Settings → Environment Variables):
-   - `VITE_SUPABASE_URL` — Project URL из Settings → API
-   - `VITE_SUPABASE_KEY` — anon (public) key оттуда же
+```bash
+docker compose exec db pg_dump -U tasks tasks > backup.sql
+```
 
-   Или через CLI:
-
-   ```bash
-   vercel login
-   vercel link
-   vercel env add VITE_SUPABASE_URL production
-   vercel env add VITE_SUPABASE_KEY production
-   vercel --prod
-   ```
-
-`vercel.json` уже содержит rewrite всех путей на `index.html` для react-router.
+Регистрация работает сразу, без подтверждения почты: внешних сервисов
+приложению не нужно.

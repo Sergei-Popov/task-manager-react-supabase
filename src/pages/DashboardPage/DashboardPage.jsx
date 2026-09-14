@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import styles from "./DashboardPage.module.css";
-import supabaseClient from "../../utils/supabaseClient.js";
+import api from "../../utils/api.js";
 import {
   Sidebar,
   StatsGrid,
@@ -15,18 +15,6 @@ import {
   INITIAL_TASK_STATE,
   INITIAL_CATEGORY_STATE,
 } from "../../components/Dashboard";
-
-// PostgREST иногда отвечает PGRST303 ("JWT issued at future") на запрос,
-// сделанный в ту же секунду, что и выдача токена (сразу после входа).
-// В этом случае повторяем запрос через секунду.
-const RETRY_DELAY_MS = 1000;
-const isJwtClockSkew = (error) => error?.code === "PGRST303";
-const withClockSkewRetry = async (run) => {
-  const result = await run();
-  if (!isJwtClockSkew(result.error)) return result;
-  await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
-  return run();
-};
 
 function DashboardPage() {
   const [tasks, setTasks] = useState([]);
@@ -54,103 +42,64 @@ function DashboardPage() {
     fetchTasks();
     fetchCategories();
     fetchTags();
+    api.auth
+      .me()
+      .then((user) => setUserEmail(user?.email || ""))
+      .catch((error) => console.error("Ошибка загрузки профиля:", error));
   }, []);
 
   const fetchCategories = async () => {
     try {
-      const {
-        data: { user },
-      } = await supabaseClient.auth.getUser();
-
-      if (!user) return;
-
-      const { data, error } = await withClockSkewRetry(() =>
-        supabaseClient
-          .from("categories")
-          .select("*")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: true }),
-      );
-
-      if (error) {
-        console.error("Ошибка загрузки категорий:", error);
-        return;
-      }
-
-      setCategories(data || []);
+      setCategories(await api.categories.list());
     } catch (error) {
-      console.error("Ошибка:", error);
+      console.error("Ошибка загрузки категорий:", error);
     }
   };
 
   const fetchTags = async () => {
     try {
-      const {
-        data: { user },
-      } = await supabaseClient.auth.getUser();
-
-      if (!user) return;
-
-      const { data, error } = await withClockSkewRetry(() =>
-        supabaseClient
-          .from("tags")
-          .select("*")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: true }),
-      );
-
-      if (error) {
-        console.error("Ошибка загрузки тегов:", error);
-        return;
-      }
-
-      setTags(data || []);
+      setTags(await api.tags.list());
     } catch (error) {
-      console.error("Ошибка:", error);
+      console.error("Ошибка загрузки тегов:", error);
     }
   };
 
   const fetchTasks = async () => {
     try {
       setIsLoading(true);
-      const {
-        data: { user },
-      } = await supabaseClient.auth.getUser();
-
-      if (!user) {
-        console.error("Пользователь не авторизован");
-        return;
-      }
-
-      setUserEmail(user.email || "");
-
-      // Загружаем задачи с подзадачами и тегами
-      const { data, error } = await withClockSkewRetry(() =>
-        supabaseClient
-          .from("tasks")
-          .select(
-            `
-          *,
-          subtasks (id, text, is_completed, position),
-          task_tags (tag_id)
-        `,
-          )
-          .eq("user_id", user.id)
-          .order("deadline", { ascending: true }),
-      );
-
-      if (error) {
-        console.error("Ошибка загрузки задач:", error);
-        return;
-      }
-
-      setTasks(data || []);
+      // Задачи приходят вместе с подзадачами и связями с тегами
+      setTasks(await api.tasks.list());
     } catch (error) {
-      console.error("Ошибка:", error);
+      console.error("Ошибка загрузки задач:", error);
     } finally {
       setIsLoading(false);
     }
   };
+
+  // Приводит состояние формы к телу запроса API
+  const buildTaskPayload = () => ({
+    text: newTask.text.trim(),
+    deadline: newTask.deadline,
+    category: newTask.category,
+    color: newTask.color,
+    status: newTask.status,
+    priority: newTask.priority,
+    is_recurring: newTask.is_recurring,
+    recurrence_type: newTask.is_recurring
+      ? newTask.recurrence_type || "daily"
+      : null,
+    recurrence_interval: newTask.is_recurring
+      ? Number(newTask.recurrence_interval) || 1
+      : null,
+    recurrence_end_date: newTask.is_recurring
+      ? newTask.recurrence_end_date || null
+      : null,
+    subtasks: newTask.subtasks.map((subtask) => ({
+      text: subtask.text,
+      is_completed: subtask.is_completed || false,
+    })),
+    tags: newTask.tags,
+  });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -159,135 +108,37 @@ function DashboardPage() {
     setIsLoading(true);
 
     try {
-      const {
-        data: { user },
-      } = await supabaseClient.auth.getUser();
-
-      if (!user) {
-        console.error("Пользователь не авторизован");
-        return;
-      }
-
-      // Создаём задачу
-      const { data: taskData, error: taskError } = await supabaseClient
-        .from("tasks")
-        .insert({
-          user_id: user.id,
-          text: newTask.text.trim(),
-          deadline: newTask.deadline,
-          category: newTask.category,
-          color: newTask.color,
-          status: newTask.status,
-          priority: newTask.priority,
-          is_recurring: newTask.is_recurring,
-          recurrence_type: newTask.is_recurring
-            ? newTask.recurrence_type || "daily"
-            : null,
-          recurrence_interval: newTask.is_recurring
-            ? newTask.recurrence_interval
-            : null,
-          recurrence_end_date: newTask.is_recurring
-            ? newTask.recurrence_end_date
-            : null,
-        })
-        .select()
-        .single();
-
-      if (taskError) {
-        console.error("Ошибка создания задачи:", taskError);
-        return;
-      }
-
-      // Создаём подзадачи
-      if (newTask.subtasks.length > 0) {
-        const subtasksToInsert = newTask.subtasks.map((subtask, index) => ({
-          task_id: taskData.id,
-          text: subtask.text,
-          is_completed: subtask.is_completed,
-          position: index,
-        }));
-
-        const { error: subtasksError } = await supabaseClient
-          .from("subtasks")
-          .insert(subtasksToInsert);
-
-        if (subtasksError) {
-          console.error("Ошибка создания подзадач:", subtasksError);
-        }
-      }
-
-      // Создаём связи с тегами
-      if (newTask.tags.length > 0) {
-        const taskTagsToInsert = newTask.tags.map((tagId) => ({
-          task_id: taskData.id,
-          tag_id: tagId,
-        }));
-
-        const { error: tagsError } = await supabaseClient
-          .from("task_tags")
-          .insert(taskTagsToInsert);
-
-        if (tagsError) {
-          console.error("Ошибка привязки тегов:", tagsError);
-        }
-      }
-
-      // Обновляем список задач
-      const enrichedTask = {
-        ...taskData,
-        subtasks: newTask.subtasks.map((s, i) => ({ ...s, position: i })),
-        task_tags: newTask.tags.map((tagId) => ({ tag_id: tagId })),
-      };
+      const createdTask = await api.tasks.create(buildTaskPayload());
 
       setTasks((prev) =>
-        [...prev, enrichedTask].sort(
+        [...prev, createdTask].sort(
           (a, b) => new Date(a.deadline) - new Date(b.deadline),
         ),
       );
       setNewTask(INITIAL_TASK_STATE);
-      setIsLoading(false);
       setIsModalOpen(false);
     } catch (error) {
-      console.error("Ошибка:", error);
+      console.error("Ошибка создания задачи:", error);
+    } finally {
       setIsLoading(false);
     }
   };
 
   const updateTaskStatus = async (id, newStatus) => {
     try {
-      const { error } = await supabaseClient
-        .from("tasks")
-        .update({ status: newStatus })
-        .eq("id", id);
-
-      if (error) {
-        console.error("Ошибка обновления статуса:", error);
-        return;
-      }
-
-      setTasks((prev) =>
-        prev.map((t) => (t.id === id ? { ...t, status: newStatus } : t)),
-      );
+      const updatedTask = await api.tasks.update(id, { status: newStatus });
+      setTasks((prev) => prev.map((t) => (t.id === id ? updatedTask : t)));
     } catch (error) {
-      console.error("Ошибка:", error);
+      console.error("Ошибка обновления статуса:", error);
     }
   };
 
   const deleteTask = async (id) => {
     try {
-      const { error } = await supabaseClient
-        .from("tasks")
-        .delete()
-        .eq("id", id);
-
-      if (error) {
-        console.error("Ошибка удаления задачи:", error);
-        return;
-      }
-
+      await api.tasks.remove(id);
       setTasks((prev) => prev.filter((task) => task.id !== id));
     } catch (error) {
-      console.error("Ошибка:", error);
+      console.error("Ошибка удаления задачи:", error);
     }
   };
 
@@ -324,74 +175,10 @@ function DashboardPage() {
     setIsLoading(true);
 
     try {
-      // Обновляем основные данные задачи
-      const { data, error } = await supabaseClient
-        .from("tasks")
-        .update({
-          text: newTask.text.trim(),
-          deadline: newTask.deadline,
-          category: newTask.category,
-          color: newTask.color,
-          status: newTask.status,
-          priority: newTask.priority,
-          is_recurring: newTask.is_recurring,
-          recurrence_type: newTask.is_recurring
-            ? newTask.recurrence_type
-            : null,
-          recurrence_interval: newTask.is_recurring
-            ? newTask.recurrence_interval
-            : null,
-          recurrence_end_date: newTask.is_recurring
-            ? newTask.recurrence_end_date
-            : null,
-        })
-        .eq("id", selectedTask.id)
-        .select()
-        .single();
-
-      if (error) {
-        console.error("Ошибка обновления задачи:", error);
-        return;
-      }
-
-      // Обновляем подзадачи: удаляем старые, добавляем новые
-      await supabaseClient
-        .from("subtasks")
-        .delete()
-        .eq("task_id", selectedTask.id);
-
-      if (newTask.subtasks.length > 0) {
-        const subtasksToInsert = newTask.subtasks.map((subtask, index) => ({
-          task_id: selectedTask.id,
-          text: subtask.text,
-          is_completed: subtask.is_completed || false,
-          position: index,
-        }));
-
-        await supabaseClient.from("subtasks").insert(subtasksToInsert);
-      }
-
-      // Обновляем теги: удаляем старые связи, добавляем новые
-      await supabaseClient
-        .from("task_tags")
-        .delete()
-        .eq("task_id", selectedTask.id);
-
-      if (newTask.tags.length > 0) {
-        const taskTagsToInsert = newTask.tags.map((tagId) => ({
-          task_id: selectedTask.id,
-          tag_id: tagId,
-        }));
-
-        await supabaseClient.from("task_tags").insert(taskTagsToInsert);
-      }
-
-      // Обновляем локальное состояние
-      const updatedTask = {
-        ...data,
-        subtasks: newTask.subtasks.map((s, i) => ({ ...s, position: i })),
-        task_tags: newTask.tags.map((tagId) => ({ tag_id: tagId })),
-      };
+      const updatedTask = await api.tasks.update(
+        selectedTask.id,
+        buildTaskPayload(),
+      );
 
       setTasks((prev) =>
         prev.map((task) => (task.id === selectedTask.id ? updatedTask : task)),
@@ -399,7 +186,7 @@ function DashboardPage() {
 
       closeViewModal();
     } catch (error) {
-      console.error("Ошибка:", error);
+      console.error("Ошибка обновления задачи:", error);
     } finally {
       setIsLoading(false);
     }
@@ -459,31 +246,14 @@ function DashboardPage() {
     if (!newCategory.name.trim()) return;
 
     try {
-      const {
-        data: { user },
-      } = await supabaseClient.auth.getUser();
-
-      if (!user) return;
-
-      const { data, error } = await supabaseClient
-        .from("categories")
-        .insert({
-          user_id: user.id,
-          name: newCategory.name.trim(),
-          icon: newCategory.icon,
-        })
-        .select()
-        .single();
-
-      if (error) {
-        console.error("Ошибка создания категории:", error);
-        return;
-      }
-
-      setCategories((prev) => [...prev, data]);
+      const category = await api.categories.create({
+        name: newCategory.name.trim(),
+        icon: newCategory.icon,
+      });
+      setCategories((prev) => [...prev, category]);
       closeCategoryModal();
     } catch (error) {
-      console.error("Ошибка:", error);
+      console.error("Ошибка создания категории:", error);
     }
   };
 
@@ -492,27 +262,16 @@ function DashboardPage() {
     if (!newCategory.name.trim() || !selectedCategory) return;
 
     try {
-      const { data, error } = await supabaseClient
-        .from("categories")
-        .update({
-          name: newCategory.name.trim(),
-          icon: newCategory.icon,
-        })
-        .eq("id", selectedCategory.id)
-        .select()
-        .single();
-
-      if (error) {
-        console.error("Ошибка обновления категории:", error);
-        return;
-      }
-
+      const category = await api.categories.update(selectedCategory.id, {
+        name: newCategory.name.trim(),
+        icon: newCategory.icon,
+      });
       setCategories((prev) =>
-        prev.map((cat) => (cat.id === selectedCategory.id ? data : cat)),
+        prev.map((cat) => (cat.id === selectedCategory.id ? category : cat)),
       );
       closeCategoryModal();
     } catch (error) {
-      console.error("Ошибка:", error);
+      console.error("Ошибка обновления категории:", error);
     }
   };
 
@@ -526,23 +285,14 @@ function DashboardPage() {
     }
 
     try {
-      const { error } = await supabaseClient
-        .from("categories")
-        .delete()
-        .eq("id", categoryId);
-
-      if (error) {
-        console.error("Ошибка удаления категории:", error);
-        return;
-      }
-
+      await api.categories.remove(categoryId);
       setCategories((prev) => prev.filter((cat) => cat.id !== categoryId));
 
       if (filter === categoryId) {
         setFilter("all");
       }
     } catch (error) {
-      console.error("Ошибка:", error);
+      console.error("Ошибка удаления категории:", error);
     }
   };
 
@@ -570,50 +320,19 @@ function DashboardPage() {
   // Функции для работы с тегами
   const handleCreateTag = async (name, color) => {
     try {
-      const {
-        data: { user },
-      } = await supabaseClient.auth.getUser();
-
-      if (!user) return;
-
-      const { data, error } = await supabaseClient
-        .from("tags")
-        .insert({
-          user_id: user.id,
-          name: name,
-          color: color,
-        })
-        .select()
-        .single();
-
-      if (error) {
-        console.error("Ошибка создания тега:", error);
-        return;
-      }
-
-      setTags((prev) => [...prev, data]);
+      const tag = await api.tags.create({ name, color });
+      setTags((prev) => [...prev, tag]);
     } catch (error) {
-      console.error("Ошибка:", error);
+      console.error("Ошибка создания тега:", error);
     }
   };
 
   const handleUpdateTag = async (tagId, name, color) => {
     try {
-      const { data, error } = await supabaseClient
-        .from("tags")
-        .update({ name, color })
-        .eq("id", tagId)
-        .select()
-        .single();
-
-      if (error) {
-        console.error("Ошибка обновления тега:", error);
-        return;
-      }
-
-      setTags((prev) => prev.map((tag) => (tag.id === tagId ? data : tag)));
+      const tag = await api.tags.update(tagId, { name, color });
+      setTags((prev) => prev.map((t) => (t.id === tagId ? tag : t)));
     } catch (error) {
-      console.error("Ошибка:", error);
+      console.error("Ошибка обновления тега:", error);
     }
   };
 
@@ -621,19 +340,10 @@ function DashboardPage() {
     if (!window.confirm("Удалить этот тег?")) return;
 
     try {
-      const { error } = await supabaseClient
-        .from("tags")
-        .delete()
-        .eq("id", tagId);
-
-      if (error) {
-        console.error("Ошибка удаления тега:", error);
-        return;
-      }
-
+      await api.tags.remove(tagId);
       setTags((prev) => prev.filter((tag) => tag.id !== tagId));
     } catch (error) {
-      console.error("Ошибка:", error);
+      console.error("Ошибка удаления тега:", error);
     }
   };
 
