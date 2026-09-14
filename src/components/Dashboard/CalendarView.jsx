@@ -1,318 +1,253 @@
 import { useState } from "react";
-import styles from "../../pages/DashboardPage/DashboardPage.module.css";
+import {
+  ArrowUp,
+  CalendarX2,
+  ChevronLeft,
+  ChevronRight,
+  Repeat,
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
+import { TASK_STATUSES } from "./constants.js";
+
+const MONTHS = [
+  "Январь",
+  "Февраль",
+  "Март",
+  "Апрель",
+  "Май",
+  "Июнь",
+  "Июль",
+  "Август",
+  "Сентябрь",
+  "Октябрь",
+  "Ноябрь",
+  "Декабрь",
+];
+const WEEKDAYS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
+
+const timeOf = (value) =>
+  new Date(value).toLocaleTimeString("ru-RU", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+const isOverdue = (task) =>
+  task.status !== "done" && new Date(task.deadline) < new Date();
 
 function CalendarView({ tasks, onView }) {
   const [currentDate, setCurrentDate] = useState(new Date());
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstWeekday = new Date(year, month, 1).getDay(); // 0 = воскресенье
+  const leadingEmpty = firstWeekday === 0 ? 6 : firstWeekday - 1;
 
-  // Получаем первый день месяца и количество дней
-  const firstDayOfMonth = new Date(year, month, 1);
-  const lastDayOfMonth = new Date(year, month + 1, 0);
-  const daysInMonth = lastDayOfMonth.getDate();
-  const startingDayOfWeek = firstDayOfMonth.getDay(); // 0 = Воскресенье
+  const today = new Date();
+  const isToday = (day) =>
+    today.getFullYear() === year &&
+    today.getMonth() === month &&
+    today.getDate() === day;
 
-  // Корректируем для начала недели с понедельника
-  const startingDay = startingDayOfWeek === 0 ? 6 : startingDayOfWeek - 1;
-
-  // Названия месяцев и дней недели
-  const monthNames = [
-    "Январь",
-    "Февраль",
-    "Март",
-    "Апрель",
-    "Май",
-    "Июнь",
-    "Июль",
-    "Август",
-    "Сентябрь",
-    "Октябрь",
-    "Ноябрь",
-    "Декабрь",
-  ];
-  const dayNames = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
-
-  // Навигация по месяцам
-  const goToPreviousMonth = () => {
-    setCurrentDate(new Date(year, month - 1, 1));
-  };
-
-  const goToNextMonth = () => {
-    setCurrentDate(new Date(year, month + 1, 1));
-  };
-
-  const goToToday = () => {
-    setCurrentDate(new Date());
-  };
-
-  // Получаем задачи для конкретного дня
-  const getTasksForDay = (day) => {
-    return tasks.filter((task) => {
-      const taskDate = new Date(task.deadline);
+  const tasksForDay = (day) =>
+    tasks.filter((task) => {
+      const d = new Date(task.deadline);
       return (
-        taskDate.getFullYear() === year &&
-        taskDate.getMonth() === month &&
-        taskDate.getDate() === day
+        d.getFullYear() === year &&
+        d.getMonth() === month &&
+        d.getDate() === day
       );
     });
-  };
 
-  // Проверяем, является ли день сегодняшним
-  const isToday = (day) => {
-    const today = new Date();
-    return (
-      today.getFullYear() === year &&
-      today.getMonth() === month &&
-      today.getDate() === day
-    );
-  };
+  const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+  const daysWithTasks = days
+    .map((day) => ({ day, tasks: tasksForDay(day) }))
+    .filter(({ day, tasks: t }) => t.length > 0 || isToday(day));
 
-  // Создаём массив дней для отображения
-  const calendarDays = [];
-
-  // Пустые ячейки до первого дня месяца
-  for (let i = 0; i < startingDay; i++) {
-    calendarDays.push(null);
-  }
-
-  // Дни месяца
-  for (let day = 1; day <= daysInMonth; day++) {
-    calendarDays.push(day);
-  }
-
-  // Получаем дни с задачами для мобильного вида
-  const daysWithTasks = [];
-  for (let day = 1; day <= daysInMonth; day++) {
-    const dayTasks = getTasksForDay(day);
-    if (dayTasks.length > 0 || isToday(day)) {
-      daysWithTasks.push({ day, tasks: dayTasks });
-    }
-  }
-
-  // Форматирование даты для мобильного вида
-  const formatDayDate = (day) => {
-    const date = new Date(year, month, day);
-    return date.toLocaleDateString("ru-RU", {
+  const formatDayDate = (day) =>
+    new Date(year, month, day).toLocaleDateString("ru-RU", {
       weekday: "short",
       day: "numeric",
       month: "short",
     });
-  };
+
+  const TaskChip = ({ task, full = false }) => (
+    <button
+      type="button"
+      onClick={() => onView(task)}
+      title={task.text}
+      className={cn(
+        "flex w-full items-center gap-1.5 rounded-md border-l-2 bg-muted/60 px-1.5 py-1 text-left text-xs transition-colors hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
+        task.status === "done" && "text-muted-foreground line-through",
+        !full && "min-w-0",
+      )}
+      style={{ borderLeftColor: task.color }}
+    >
+      <span className="shrink-0 tabular-nums text-muted-foreground">
+        {timeOf(task.deadline)}
+      </span>
+      <span className={cn("flex-1", full ? "" : "truncate")}>{task.text}</span>
+      {task.priority === "high" && (
+        <ArrowUp
+          className="size-3 shrink-0 text-red-500"
+          aria-label="Высокий приоритет"
+        />
+      )}
+      {full && task.is_recurring && (
+        <Repeat
+          className="size-3 shrink-0 text-muted-foreground"
+          aria-label="Повторяется"
+        />
+      )}
+    </button>
+  );
 
   return (
-    <div className={styles.calendarView}>
-      {/* Шапка календаря */}
-      <div className={styles.calendarHeader}>
-        <button
-          className={styles.calendarNavBtn}
-          onClick={goToPreviousMonth}
-          title="Предыдущий месяц"
+    <Card className="gap-0 p-0">
+      {/* Шапка */}
+      <div className="flex items-center justify-between gap-2 border-b p-3 sm:p-4">
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => setCurrentDate(new Date(year, month - 1, 1))}
+          aria-label="Предыдущий месяц"
         >
-          ←
-        </button>
-        <div className={styles.calendarTitle}>
-          <h3>
-            {monthNames[month]} {year}
+          <ChevronLeft />
+        </Button>
+        <div className="flex items-center gap-3">
+          <h3 className="text-lg font-semibold">
+            {MONTHS[month]} {year}
           </h3>
-          <button className={styles.calendarTodayBtn} onClick={goToToday}>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setCurrentDate(new Date())}
+          >
             Сегодня
-          </button>
+          </Button>
         </div>
-        <button
-          className={styles.calendarNavBtn}
-          onClick={goToNextMonth}
-          title="Следующий месяц"
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => setCurrentDate(new Date(year, month + 1, 1))}
+          aria-label="Следующий месяц"
         >
-          →
-        </button>
+          <ChevronRight />
+        </Button>
       </div>
 
-      {/* Дни недели */}
-      <div className={styles.calendarWeekdays}>
-        {dayNames.map((day) => (
-          <div key={day} className={styles.calendarWeekday}>
-            {day}
-          </div>
-        ))}
-      </div>
-
-      {/* Сетка дней (десктоп) */}
-      <div className={styles.calendarGrid}>
-        {calendarDays.map((day, index) => {
-          if (day === null) {
-            return (
-              <div key={`empty-${index}`} className={styles.calendarDayEmpty} />
-            );
-          }
-
-          const dayTasks = getTasksForDay(day);
-          const hasOverdue = dayTasks.some(
-            (t) => t.status !== "done" && new Date(t.deadline) < new Date(),
-          );
-
-          return (
+      {/* Сетка (планшет и десктоп) */}
+      <div className="hidden md:block">
+        <div className="grid grid-cols-7 border-b">
+          {WEEKDAYS.map((d) => (
             <div
-              key={day}
-              className={`${styles.calendarDay} ${isToday(day) ? styles.calendarDayToday : ""} ${hasOverdue ? styles.calendarDayOverdue : ""}`}
+              key={d}
+              className="py-2 text-center text-xs font-semibold text-muted-foreground uppercase"
             >
-              <div className={styles.calendarDayNumber}>{day}</div>
-              <div className={styles.calendarDayTasks}>
-                {dayTasks.slice(0, 3).map((task) => {
-                  return (
-                    <div
-                      key={task.id}
-                      className={`${styles.calendarTask} ${task.status === "done" ? styles.calendarTaskDone : ""}`}
-                      style={{ borderLeftColor: task.color }}
-                      onClick={() => onView(task)}
-                      title={task.text}
-                    >
-                      <span className={styles.calendarTaskTime}>
-                        {new Date(task.deadline).toLocaleTimeString("ru-RU", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
-                      <span className={styles.calendarTaskText}>
-                        {task.text.length > 20
-                          ? task.text.substring(0, 20) + "..."
-                          : task.text}
-                      </span>
-                      {task.priority === "high" && (
-                        <span className={styles.calendarTaskPriority}>🔼</span>
-                      )}
-                    </div>
-                  );
-                })}
-                {dayTasks.length > 3 && (
-                  <div className={styles.calendarTasksMore}>
-                    +{dayTasks.length - 3} ещё
-                  </div>
-                )}
-              </div>
+              {d}
             </div>
-          );
-        })}
-      </div>
-
-      {/* Мобильный список дней */}
-      <div className={styles.calendarMobileList}>
-        {daysWithTasks.length === 0 ? (
-          <div className={styles.calendarMobileEmpty}>
-            <span>📅</span>
-            <p>Нет задач на этот месяц</p>
-          </div>
-        ) : (
-          daysWithTasks.map(({ day, tasks: dayTasks }) => {
-            const hasOverdue = dayTasks.some(
-              (t) => t.status !== "done" && new Date(t.deadline) < new Date(),
-            );
-
+          ))}
+        </div>
+        <div className="grid grid-cols-7">
+          {Array.from({ length: leadingEmpty }).map((_, i) => (
+            <div
+              key={`empty-${i}`}
+              className="min-h-28 border-r border-b bg-muted/20 last:border-r-0"
+            />
+          ))}
+          {days.map((day) => {
+            const dayTasks = tasksForDay(day);
+            const overdue = dayTasks.some(isOverdue);
             return (
               <div
                 key={day}
-                className={`${styles.calendarMobileDay} ${isToday(day) ? styles.calendarMobileDayToday : ""}`}
+                className={cn(
+                  "flex min-h-28 flex-col gap-1 border-r border-b p-1.5 [&:nth-child(7n)]:border-r-0",
+                  isToday(day) && "bg-primary/10",
+                  overdue && "bg-destructive/10",
+                )}
               >
-                <div className={styles.calendarMobileDayHeader}>
-                  <span
-                    className={`${styles.calendarMobileDayDate} ${isToday(day) ? styles.calendarMobileDayDateToday : ""}`}
-                  >
-                    {formatDayDate(day)}
+                <span
+                  className={cn(
+                    "mb-0.5 inline-flex size-6 items-center justify-center rounded-full text-xs font-semibold",
+                    isToday(day) && "bg-primary text-primary-foreground",
+                  )}
+                >
+                  {day}
+                </span>
+                {dayTasks.slice(0, 3).map((task) => (
+                  <TaskChip key={task.id} task={task} />
+                ))}
+                {dayTasks.length > 3 && (
+                  <span className="px-1 text-xs text-muted-foreground">
+                    +{dayTasks.length - 3} ещё
                   </span>
-                  {isToday(day) && (
-                    <span className={styles.calendarMobileTodayBadge}>
-                      Сегодня
-                    </span>
-                  )}
-                  {hasOverdue && (
-                    <span className={styles.calendarMobileOverdueBadge}>
-                      Просрочено
-                    </span>
-                  )}
-                </div>
-                <div className={styles.calendarMobileDayTasks}>
-                  {dayTasks.length === 0 ? (
-                    <div className={styles.calendarMobileNoTasks}>
-                      Нет задач
-                    </div>
-                  ) : (
-                    dayTasks.map((task) => (
-                      <div
-                        key={task.id}
-                        className={`${styles.calendarMobileTask} ${task.status === "done" ? styles.calendarMobileTaskDone : ""}`}
-                        style={{ borderLeftColor: task.color }}
-                        onClick={() => onView(task)}
-                      >
-                        <div className={styles.calendarMobileTaskMain}>
-                          <span className={styles.calendarMobileTaskTime}>
-                            {new Date(task.deadline).toLocaleTimeString(
-                              "ru-RU",
-                              {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              },
-                            )}
-                          </span>
-                          <span className={styles.calendarMobileTaskText}>
-                            {task.text}
-                          </span>
-                        </div>
-                        <div className={styles.calendarMobileTaskBadges}>
-                          {task.priority === "high" && (
-                            <span className={styles.calendarMobileTaskPriority}>
-                              🔼
-                            </span>
-                          )}
-                          {task.is_recurring && (
-                            <span
-                              className={styles.calendarMobileTaskRecurring}
-                            >
-                              🔄
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
+                )}
               </div>
             );
-          })
+          })}
+        </div>
+      </div>
+
+      {/* Список (мобильный) */}
+      <div className="flex flex-col gap-3 p-3 md:hidden">
+        {daysWithTasks.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 py-8 text-center text-muted-foreground">
+            <CalendarX2 className="size-8" aria-hidden="true" />
+            <p className="text-sm">Нет задач на этот месяц</p>
+          </div>
+        ) : (
+          daysWithTasks.map(({ day, tasks: dayTasks }) => (
+            <div
+              key={day}
+              className={cn(
+                "rounded-lg border p-3",
+                isToday(day) && "border-primary/60 bg-primary/5",
+              )}
+            >
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <span className="text-sm font-semibold capitalize">
+                  {formatDayDate(day)}
+                </span>
+                {isToday(day) && <Badge>Сегодня</Badge>}
+                {dayTasks.some(isOverdue) && (
+                  <Badge variant="destructive">Просрочено</Badge>
+                )}
+              </div>
+              {dayTasks.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Нет задач</p>
+              ) : (
+                <div className="flex flex-col gap-1.5">
+                  {dayTasks.map((task) => (
+                    <TaskChip key={task.id} task={task} full />
+                  ))}
+                </div>
+              )}
+            </div>
+          ))
         )}
       </div>
 
       {/* Легенда */}
-      <div className={styles.calendarLegend}>
-        <div className={styles.calendarLegendItem}>
-          <span
-            className={styles.calendarLegendDot}
-            style={{ backgroundColor: "#6366f1" }}
-          />
-          <span>К выполнению</span>
-        </div>
-        <div className={styles.calendarLegendItem}>
-          <span
-            className={styles.calendarLegendDot}
-            style={{ backgroundColor: "#f97316" }}
-          />
-          <span>В работе</span>
-        </div>
-        <div className={styles.calendarLegendItem}>
-          <span
-            className={styles.calendarLegendDot}
-            style={{ backgroundColor: "#22c55e" }}
-          />
-          <span>Завершено</span>
-        </div>
-        <div className={styles.calendarLegendItem}>
-          <span
-            className={styles.calendarLegendDot}
-            style={{ backgroundColor: "#ef4444" }}
-          />
-          <span>Просрочено</span>
-        </div>
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-t px-4 py-3 text-xs text-muted-foreground">
+        {Object.values(TASK_STATUSES).map((status) => (
+          <span key={status.id} className="inline-flex items-center gap-1.5">
+            <span
+              className="size-2.5 rounded-full"
+              style={{ backgroundColor: status.color }}
+            />
+            {status.name}
+          </span>
+        ))}
+        <span className="inline-flex items-center gap-1.5">
+          <span className="size-2.5 rounded-full bg-red-500" />
+          Просрочено
+        </span>
       </div>
-    </div>
+    </Card>
   );
 }
 

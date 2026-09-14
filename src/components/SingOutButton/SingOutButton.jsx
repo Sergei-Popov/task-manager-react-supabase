@@ -1,9 +1,9 @@
 import { useNavigate } from "react-router-dom";
-
-import styles from "./SingOutButton.module.css";
+import { LogOut } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import api from "../../utils/api.js";
 
-function SingOutButton() {
+function SingOutButton({ className }) {
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
@@ -16,9 +16,10 @@ function SingOutButton() {
   };
 
   return (
-    <button className={styles.button} onClick={handleSignOut}>
+    <Button variant="outline" className={className} onClick={handleSignOut}>
+      <LogOut data-icon="inline-start" />
       Выход
-    </button>
+    </Button>
   );
 }
 

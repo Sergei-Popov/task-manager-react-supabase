@@ -1,5 +1,74 @@
-import styles from "../../pages/DashboardPage/DashboardPage.module.css";
+import { CalendarDays, Pencil, Timer, Trash2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { PriorityIcon, RecurrenceIcon, StatusIcon } from "@/lib/icons.jsx";
+import { cn } from "@/lib/utils";
 import { TASK_STATUSES, TASK_PRIORITIES } from "./constants.js";
+
+export function TaskBadges({ task, className }) {
+  const subtasksCount = task.subtasks?.length || 0;
+  const completedSubtasks =
+    task.subtasks?.filter((s) => s.is_completed).length || 0;
+  const priority = TASK_PRIORITIES[task.priority] || TASK_PRIORITIES.medium;
+
+  return (
+    <div className={cn("flex flex-wrap items-center gap-1.5", className)}>
+      {task.priority && task.priority !== "medium" && (
+        <Badge
+          variant="outline"
+          className="gap-1"
+          style={{ color: priority.color, borderColor: priority.color }}
+        >
+          <PriorityIcon priority={task.priority} className="size-3" />
+          {priority.name}
+        </Badge>
+      )}
+      {task.is_recurring && (
+        <Badge variant="secondary" className="gap-1">
+          <RecurrenceIcon className="size-3" aria-hidden="true" />
+          Повтор
+        </Badge>
+      )}
+      {subtasksCount > 0 && (
+        <Badge variant="secondary">
+          {completedSubtasks}/{subtasksCount}
+        </Badge>
+      )}
+    </div>
+  );
+}
+
+export function TaskTags({ task, tags, className }) {
+  const ids = task.task_tags?.map((tt) => tt.tag_id) || [];
+  const taskTags = tags.filter((tag) => ids.includes(tag.id));
+  if (taskTags.length === 0) return null;
+  return (
+    <div className={cn("flex flex-wrap gap-1.5", className)}>
+      {taskTags.map((tag) => (
+        <Badge
+          key={tag.id}
+          className="border-transparent text-white"
+          style={{ backgroundColor: tag.color }}
+        >
+          {tag.name}
+        </Badge>
+      ))}
+    </div>
+  );
+}
 
 function TaskCard({
   task,
@@ -13,111 +82,111 @@ function TaskCard({
   tags = [],
 }) {
   const currentStatus = TASK_STATUSES[task.status] || TASK_STATUSES.todo;
-  const priority = TASK_PRIORITIES[task.priority] || TASK_PRIORITIES.medium;
-
-  // Получаем информацию о тегах задачи
-  const taskTagIds = task.task_tags?.map((tt) => tt.tag_id) || [];
-  const taskTags = tags.filter((tag) => taskTagIds.includes(tag.id));
-
-  // Считаем прогресс подзадач
-  const subtasksCount = task.subtasks?.length || 0;
-  const completedSubtasks =
-    task.subtasks?.filter((s) => s.is_completed).length || 0;
+  const isDone = task.status === "done";
 
   return (
-    <div
-      className={`${styles.taskCard} ${task.status === "done" ? styles.completed : ""}`}
+    <Card
+      className={cn(
+        "gap-0 border-l-4 py-0 transition-colors hover:border-primary/40",
+        isDone && "opacity-70",
+      )}
       style={{ borderLeftColor: task.color }}
     >
-      <div className={styles.statusSelector}>
-        <select
-          className={styles.statusSelect}
-          value={task.status}
-          onChange={(e) => onStatusChange(task.id, e.target.value)}
-          style={{
-            backgroundColor: currentStatus.color,
-            color: "#fff",
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {Object.values(TASK_STATUSES).map((status) => (
-            <option key={status.id} value={status.id}>
-              {status.icon} {status.name}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className={styles.taskContent} onClick={() => onView(task)}>
-        <div className={styles.taskHeader}>
-          <h4 className={styles.taskText}>{truncateText(task.text)}</h4>
-          <div className={styles.taskBadges}>
-            {task.priority && task.priority !== "medium" && (
-              <span
-                className={`${styles.priorityIndicator} ${
-                  task.priority === "high"
-                    ? styles.priorityHigh
-                    : styles.priorityLow
-                }`}
-              >
-                {priority.icon}
-              </span>
-            )}
-            {task.is_recurring && (
-              <span className={styles.recurrenceBadge}>🔄</span>
-            )}
-            {subtasksCount > 0 && (
-              <span className={styles.subtasksBadge}>
-                ☑ {completedSubtasks}/{subtasksCount}
-              </span>
-            )}
-          </div>
-        </div>
-        <div className={styles.taskMeta}>
-          <span className={styles.taskCategory}>
-            {category.icon} {category.name}
-          </span>
-          <span
-            className={`${styles.taskDeadline} ${timeRemaining.isOverdue ? styles.overdue : ""}`}
+      <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-start">
+        <div className="sm:w-44 sm:shrink-0">
+          <Select
+            value={task.status}
+            onValueChange={(value) => onStatusChange(task.id, value)}
           >
-            🕐 {timeRemaining.text}
-          </span>
-          <span className={styles.taskDate}>
-            📅{" "}
-            {new Date(task.deadline).toLocaleString("ru-RU", {
-              day: "2-digit",
-              month: "2-digit",
-              year: "numeric",
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </span>
+            <SelectTrigger
+              className="w-full border-transparent font-medium text-white"
+              style={{ backgroundColor: currentStatus.color }}
+              aria-label="Статус задачи"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.values(TASK_STATUSES).map((status) => (
+                <SelectItem key={status.id} value={status.id}>
+                  <StatusIcon status={status.id} className="size-4" />
+                  {status.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-        {taskTags.length > 0 && (
-          <div className={styles.taskTags}>
-            {taskTags.map((tag) => (
-              <span
-                key={tag.id}
-                className={styles.taskTag}
-                style={{ backgroundColor: tag.color }}
-              >
-                {tag.name}
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
-      <div className={styles.taskActions}>
-        <button className={styles.editButton} onClick={() => onEdit(task)}>
-          ✏️
-        </button>
+
         <button
-          className={styles.deleteButton}
-          onClick={() => onDelete(task.id)}
+          type="button"
+          className="min-w-0 flex-1 rounded-md text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+          onClick={() => onView(task)}
         >
-          🗑️
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <h4
+              className={cn(
+                "text-base font-semibold leading-snug",
+                isDone && "line-through",
+              )}
+            >
+              {truncateText(task.text)}
+            </h4>
+            <TaskBadges task={task} />
+          </div>
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+            <span className="inline-flex items-center gap-1">
+              <span aria-hidden="true">{category.icon}</span>
+              {category.name}
+            </span>
+            <span
+              className={cn(
+                "inline-flex items-center gap-1",
+                timeRemaining.isOverdue && "font-medium text-destructive",
+              )}
+            >
+              <Timer className="size-3.5" aria-hidden="true" />
+              {timeRemaining.text}
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <CalendarDays className="size-3.5" aria-hidden="true" />
+              {new Date(task.deadline).toLocaleString("ru-RU", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </span>
+          </div>
+          <TaskTags task={task} tags={tags} className="mt-2" />
         </button>
+
+        <div className="flex shrink-0 items-center gap-1 self-end sm:self-start">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" onClick={() => onEdit(task)}>
+                <Pencil />
+                <span className="sr-only">Редактировать</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Редактировать</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="hover:text-destructive"
+                onClick={() => onDelete(task.id)}
+              >
+                <Trash2 />
+                <span className="sr-only">Удалить</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Удалить</TooltipContent>
+          </Tooltip>
+        </div>
       </div>
-    </div>
+    </Card>
   );
 }
 

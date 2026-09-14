@@ -1,7 +1,95 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import styles from "../../pages/DashboardPage/DashboardPage.module.css";
-import { TASK_PRIORITIES } from "./constants.js";
+import { Eye, GripVertical, Pencil, Timer, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
+import { TaskBadges, TaskTags } from "./TaskCard.jsx";
+
+// Содержимое карточки без drag-логики: используется и в колонке, и в DragOverlay
+export function KanbanCardBody({
+  task,
+  category,
+  timeRemaining,
+  truncateText,
+  tags = [],
+  onView,
+  onEdit,
+  onDelete,
+  dragHandle,
+}) {
+  return (
+    <>
+      <div className="flex items-start gap-2">
+        {dragHandle}
+        <span className="inline-flex min-w-0 flex-1 items-center gap-1 text-xs text-muted-foreground">
+          <span aria-hidden="true">{category.icon}</span>
+          <span className="truncate">{category.name}</span>
+        </span>
+        {onView && (
+          <div className="-mr-1 -mt-1 flex shrink-0 items-center">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                onView(task);
+              }}
+              aria-label="Просмотр"
+            >
+              <Eye />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(task);
+              }}
+              aria-label="Редактировать"
+            >
+              <Pencil />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="hover:text-destructive"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(task.id);
+              }}
+              aria-label="Удалить"
+            >
+              <Trash2 />
+            </Button>
+          </div>
+        )}
+      </div>
+      <p
+        className={cn(
+          "text-sm font-medium leading-snug",
+          task.status === "done" && "text-muted-foreground line-through",
+        )}
+      >
+        {truncateText(task.text, 100)}
+      </p>
+      <TaskBadges task={task} />
+      <TaskTags task={task} tags={tags} />
+      <div
+        className={cn(
+          "inline-flex items-center gap-1 text-xs text-muted-foreground",
+          timeRemaining.isOverdue && "font-medium text-destructive",
+        )}
+      >
+        <Timer className="size-3.5" aria-hidden="true" />
+        {timeRemaining.text}
+      </div>
+    </>
+  );
+}
 
 function KanbanCard({
   task,
@@ -17,6 +105,7 @@ function KanbanCard({
     attributes,
     listeners,
     setNodeRef,
+    setActivatorNodeRef,
     transform,
     transition,
     isDragging,
@@ -26,112 +115,39 @@ function KanbanCard({
     transform: CSS.Transform.toString(transform),
     transition,
     borderLeftColor: task.color,
-    opacity: isDragging ? 0.5 : 1,
+    opacity: isDragging ? 0.4 : 1,
   };
 
-  const priority = TASK_PRIORITIES[task.priority] || TASK_PRIORITIES.medium;
-
-  // Получаем информацию о тегах задачи
-  const taskTagIds = task.task_tags?.map((tt) => tt.tag_id) || [];
-  const taskTags = tags.filter((tag) => taskTagIds.includes(tag.id));
-
-  // Считаем прогресс подзадач
-  const subtasksCount = task.subtasks?.length || 0;
-  const completedSubtasks =
-    task.subtasks?.filter((s) => s.is_completed).length || 0;
-
   return (
-    <div
+    <Card
       ref={setNodeRef}
       style={style}
-      className={`${styles.kanbanCard} ${isDragging ? styles.cardDragging : ""}`}
-      {...attributes}
-      {...listeners}
+      size="sm"
+      className="gap-2 border-l-4 p-3"
     >
-      <div className={styles.kanbanCardHeader}>
-        <span className={styles.kanbanCardCategory}>
-          {category.icon} {category.name}
-        </span>
-        <div className={styles.kanbanCardBadges}>
-          {task.priority && task.priority !== "medium" && (
-            <span
-              className={`${styles.priorityIndicator} ${
-                task.priority === "high"
-                  ? styles.priorityHigh
-                  : styles.priorityLow
-              }`}
-            >
-              {priority.icon}
-            </span>
-          )}
-          {task.is_recurring && (
-            <span className={styles.recurrenceBadge}>🔄</span>
-          )}
-          {subtasksCount > 0 && (
-            <span className={styles.subtasksBadge}>
-              ☑ {completedSubtasks}/{subtasksCount}
-            </span>
-          )}
-        </div>
-        <div className={styles.kanbanCardActions}>
+      <KanbanCardBody
+        task={task}
+        category={category}
+        timeRemaining={timeRemaining}
+        truncateText={truncateText}
+        tags={tags}
+        onView={onView}
+        onEdit={onEdit}
+        onDelete={onDelete}
+        dragHandle={
           <button
-            className={styles.kanbanCardBtn}
-            onClick={(e) => {
-              e.stopPropagation();
-              onView(task);
-            }}
-            title="Просмотр"
+            ref={setActivatorNodeRef}
+            type="button"
+            className="-ml-1 flex size-6 shrink-0 cursor-grab touch-none items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground active:cursor-grabbing"
+            aria-label="Перетащить задачу"
+            {...attributes}
+            {...listeners}
           >
-            👁️
+            <GripVertical className="size-4" />
           </button>
-          <button
-            className={styles.kanbanCardBtn}
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit(task);
-            }}
-            title="Редактировать"
-          >
-            ✏️
-          </button>
-          <button
-            className={styles.kanbanCardBtn}
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete(task.id);
-            }}
-            title="Удалить"
-          >
-            🗑️
-          </button>
-        </div>
-      </div>
-      <p className={styles.kanbanCardText}>{truncateText(task.text, 100)}</p>
-
-      {taskTags.length > 0 && (
-        <div className={styles.taskTags}>
-          {taskTags.map((tag) => (
-            <span
-              key={tag.id}
-              className={styles.taskTag}
-              style={{ backgroundColor: tag.color }}
-            >
-              {tag.name}
-            </span>
-          ))}
-        </div>
-      )}
-
-      <div className={styles.kanbanCardFooter}>
-        <span
-          className={`${styles.kanbanCardDeadline} ${
-            timeRemaining.isOverdue ? styles.overdue : ""
-          }`}
-        >
-          🕐 {timeRemaining.text}
-        </span>
-      </div>
-    </div>
+        }
+      />
+    </Card>
   );
 }
 

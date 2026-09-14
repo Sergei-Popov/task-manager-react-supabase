@@ -1,10 +1,40 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-
+import { CheckCircle2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Spinner } from "@/components/ui/spinner";
 import { validateRegistrationForm } from "../../utils/validator.js";
-
-import styles from "./RegistrationPage.module.css";
 import api from "../../utils/api.js";
+
+function Field({ id, label, error, ...inputProps }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <Label htmlFor={id}>{label}</Label>
+      <Input
+        id={id}
+        name={id}
+        aria-invalid={Boolean(error)}
+        aria-describedby={error ? `${id}Error` : undefined}
+        {...inputProps}
+      />
+      {error && (
+        <p id={`${id}Error`} className="text-sm text-destructive">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
 
 export const RegistrationPage = () => {
   const [message, setMessage] = useState("");
@@ -22,13 +52,10 @@ export const RegistrationPage = () => {
 
     const validationResponse = validateRegistrationForm(user);
 
-    // Очистка предыдущих ошибок
-    form.querySelectorAll(".error").forEach((span) => (span.textContent = ""));
-
     if (validationResponse === true) {
-      // Если валидация прошла успешно
       setLoading(true);
       setErrors({});
+      setMessage("");
       try {
         await api.auth.register(
           user.email.toString() || "",
@@ -41,8 +68,6 @@ export const RegistrationPage = () => {
         setLoading(false);
       }
     } else {
-      // Если валидация не прошла
-      setTimeout(() => setLoading(false), 500);
       const errorMap = {};
       validationResponse.forEach((error) => {
         errorMap[error.field] = error.message;
@@ -52,77 +77,77 @@ export const RegistrationPage = () => {
   };
 
   return (
-    <div className={styles.registerContainer}>
-      <div className={styles.registerCard}>
-        <div className={styles.registerHeader}>
-          <h1>Регистрация</h1>
-          {message && <p>{message}</p>}
-        </div>
-
-        <form
-          className={styles.registerForm}
-          id="registerForm"
-          noValidate
-          onSubmit={handleSubmit}
-        >
-          {/*<div className={styles.formField}>*/}
-          {/*  <input type="text" id="username" name="username" placeholder="" />*/}
-          {/*  <label htmlFor="username">Имя пользователя*</label>*/}
-          {/*  <span className={styles.errorMessage} id="usernameError">*/}
-          {/*    {errors.username}*/}
-          {/*  </span>*/}
-          {/*</div>*/}
-
-          <div className={styles.formField}>
-            <input type="email" id="email" name="email" placeholder="" />
-            <label htmlFor="email">Электронная почта*</label>
-            <span className={styles.errorMessage} id="emailError">
-              {errors.email}
-            </span>
-          </div>
-
-          <div className={styles.formField}>
-            <input
-              type="password"
-              id="password"
-              name="password"
-              placeholder=""
-            />
-            <label htmlFor="password">Пароль*</label>
-            <span className={styles.errorMessage} id="passwordError">
-              {errors.password}
-            </span>
-          </div>
-
-          <div className={styles.formField}>
-            <input
-              type="password"
-              id="confirmPassword"
-              name="confirmPassword"
-              placeholder=""
-            />
-            <label htmlFor="confirmPassword">Подтвердите пароль*</label>
-            <span className={styles.errorMessage} id="confirmPasswordError">
-              {errors.confirmPassword}
-            </span>
-          </div>
-
-          <button
-            type="submit"
-            className={`${styles.button} ${loading && styles.loading}`}
-            disabled={loading}
+    <div className="flex min-h-svh items-center justify-center bg-background px-4 py-10">
+      <Card className="w-full max-w-sm">
+        <CardHeader className="text-center">
+          <Link
+            to="/"
+            className="mx-auto mb-2 flex items-center gap-2 text-primary"
           >
-            <span className={styles.buttonText}>Зарегистрироваться</span>
-            <div className={styles.buttonLoader}>
-              <div className={styles.loaderCircle}></div>
-            </div>
-          </button>
-        </form>
-        <div className={styles.signUpPrompt}>
-          <span>Уже зарегистрированы?</span>
-          <Link to="/login">Войти</Link>
-        </div>
-      </div>
+            <CheckCircle2 className="size-6" aria-hidden="true" />
+            <span className="font-semibold">Мои задачи</span>
+          </Link>
+          <CardTitle className="text-2xl">Регистрация</CardTitle>
+          <CardDescription>
+            Аккаунт создаётся мгновенно, подтверждать почту не нужно
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form
+            id="registerForm"
+            noValidate
+            onSubmit={handleSubmit}
+            className="flex flex-col gap-5"
+          >
+            <Field
+              id="email"
+              label="Электронная почта"
+              type="email"
+              autoComplete="email"
+              placeholder="you@example.com"
+              error={errors.email}
+            />
+            <Field
+              id="password"
+              label="Пароль"
+              type="password"
+              autoComplete="new-password"
+              placeholder="Минимум 6 символов"
+              error={errors.password}
+            />
+            <Field
+              id="confirmPassword"
+              label="Подтвердите пароль"
+              type="password"
+              autoComplete="new-password"
+              placeholder="Повторите пароль"
+              error={errors.confirmPassword}
+            />
+            <p className="text-xs text-muted-foreground">
+              Пароль должен содержать заглавную букву, цифру и спецсимвол
+              (!@#$%^&amp;*).
+            </p>
+            {message && (
+              <p role="alert" className="text-sm text-destructive">
+                {message}
+              </p>
+            )}
+            <Button type="submit" size="lg" disabled={loading}>
+              {loading ? <Spinner data-icon="inline-start" /> : null}
+              Зарегистрироваться
+            </Button>
+          </form>
+        </CardContent>
+        <CardFooter className="justify-center text-sm text-muted-foreground">
+          Уже зарегистрированы?
+          <Link
+            to="/login"
+            className="ml-1 font-medium text-primary hover:underline"
+          >
+            Войти
+          </Link>
+        </CardFooter>
+      </Card>
     </div>
   );
 };

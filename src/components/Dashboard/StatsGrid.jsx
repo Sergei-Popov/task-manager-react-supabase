@@ -1,44 +1,53 @@
-import styles from "../../pages/DashboardPage/DashboardPage.module.css";
+import { AlertTriangle, CheckCircle2, Clock, ListTodo } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+
+const STATS = [
+  {
+    key: "todo",
+    label: "К выполнению",
+    icon: ListTodo,
+    color: "bg-indigo-500",
+  },
+  { key: "inProgress", label: "В работе", icon: Clock, color: "bg-orange-500" },
+  {
+    key: "completed",
+    label: "Завершено",
+    icon: CheckCircle2,
+    color: "bg-green-500",
+  },
+  {
+    key: "overdue",
+    label: "Просрочено",
+    icon: AlertTriangle,
+    color: "bg-red-500",
+  },
+];
 
 function StatsGrid({ stats }) {
   return (
-    <div className={styles.statsGrid}>
-      <div className={styles.statCard}>
-        <div className={styles.statIcon} style={{ background: "#6366f1" }}>
-          📝
-        </div>
-        <div className={styles.statInfo}>
-          <span className={styles.statValue}>{stats.todo}</span>
-          <span className={styles.statLabel}>К выполнению</span>
-        </div>
-      </div>
-      <div className={styles.statCard}>
-        <div className={styles.statIcon} style={{ background: "#f97316" }}>
-          ⏳
-        </div>
-        <div className={styles.statInfo}>
-          <span className={styles.statValue}>{stats.inProgress}</span>
-          <span className={styles.statLabel}>В работе</span>
-        </div>
-      </div>
-      <div className={styles.statCard}>
-        <div className={styles.statIcon} style={{ background: "#22c55e" }}>
-          ✅
-        </div>
-        <div className={styles.statInfo}>
-          <span className={styles.statValue}>{stats.completed}</span>
-          <span className={styles.statLabel}>Завершено</span>
-        </div>
-      </div>
-      <div className={styles.statCard}>
-        <div className={styles.statIcon} style={{ background: "#ef4444" }}>
-          ⚠️
-        </div>
-        <div className={styles.statInfo}>
-          <span className={styles.statValue}>{stats.overdue}</span>
-          <span className={styles.statLabel}>Просрочено</span>
-        </div>
-      </div>
+    <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+      {STATS.map(({ key, label, icon, color }) => {
+        const Icon = icon;
+        return (
+          <Card key={key} size="sm">
+            <CardContent className="flex items-center gap-3 p-4">
+              <span
+                className={`flex size-10 shrink-0 items-center justify-center rounded-lg text-white ${color}`}
+              >
+                <Icon className="size-5" aria-hidden="true" />
+              </span>
+              <div className="min-w-0">
+                <div className="text-2xl font-bold leading-tight">
+                  {stats[key]}
+                </div>
+                <div className="truncate text-xs text-muted-foreground">
+                  {label}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })}
     </div>
   );
 }

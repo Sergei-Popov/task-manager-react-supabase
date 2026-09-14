@@ -1,5 +1,24 @@
 import { useState } from "react";
-import styles from "../../pages/DashboardPage/DashboardPage.module.css";
+import { Check, Pencil, Plus, Trash2, X } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 import { COLORS } from "./constants.js";
 
 function TagModal({
@@ -15,7 +34,11 @@ function TagModal({
   const [newTagColor, setNewTagColor] = useState(COLORS[0]);
   const [editingTag, setEditingTag] = useState(null);
 
-  if (!isOpen) return null;
+  const reset = () => {
+    setEditingTag(null);
+    setNewTagName("");
+    setNewTagColor(COLORS[0]);
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -23,12 +46,10 @@ function TagModal({
 
     if (editingTag) {
       onUpdateTag(editingTag.id, newTagName.trim(), newTagColor);
-      setEditingTag(null);
     } else {
       onCreateTag(newTagName.trim(), newTagColor);
     }
-    setNewTagName("");
-    setNewTagColor(COLORS[0]);
+    reset();
   };
 
   const handleEdit = (tag) => {
@@ -37,119 +58,153 @@ function TagModal({
     setNewTagColor(tag.color);
   };
 
-  const handleCancelEdit = () => {
-    setEditingTag(null);
-    setNewTagName("");
-    setNewTagColor(COLORS[0]);
-  };
-
   return (
-    <div className={styles.modalOverlay} onClick={onClose}>
-      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-        <div className={styles.modalHeader}>
-          <h2>Управление тегами</h2>
-          <button className={styles.closeButton} onClick={onClose}>
-            ✕
-          </button>
-        </div>
-        <div className={styles.modalContent}>
-          <form onSubmit={handleSubmit} className={styles.form}>
-            <div className={styles.formGroup}>
-              <label htmlFor="tagName">
-                {editingTag ? "Редактировать тег" : "Новый тег"}
-              </label>
-              <div className={styles.tagInputRow}>
-                <input
-                  id="tagName"
-                  type="text"
-                  value={newTagName}
-                  onChange={(e) => setNewTagName(e.target.value)}
-                  placeholder="Название тега..."
-                  required
-                />
-                <button
-                  type="submit"
-                  className={styles.tagAddButton}
-                  disabled={isLoading || !newTagName.trim()}
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) {
+          reset();
+          onClose();
+        }
+      }}
+    >
+      <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Управление тегами</DialogTitle>
+          <DialogDescription>
+            Теги можно вешать на задачи в любом количестве.
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="tagName">
+              {editingTag ? "Редактировать тег" : "Новый тег"}
+            </Label>
+            <div className="flex gap-2">
+              <Input
+                id="tagName"
+                className="h-9"
+                value={newTagName}
+                onChange={(e) => setNewTagName(e.target.value)}
+                placeholder="Название тега"
+                maxLength={50}
+                required
+              />
+              <Button
+                type="submit"
+                size="lg"
+                disabled={isLoading || !newTagName.trim()}
+                aria-label={editingTag ? "Сохранить тег" : "Добавить тег"}
+              >
+                {editingTag ? <Check /> : <Plus />}
+              </Button>
+              {editingTag && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  onClick={reset}
+                  aria-label="Отменить редактирование"
                 >
-                  {editingTag ? "✓" : "+"}
-                </button>
-                {editingTag && (
-                  <button
-                    type="button"
-                    className={styles.tagCancelButton}
-                    onClick={handleCancelEdit}
+                  <X />
+                </Button>
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Label>Цвет тега</Label>
+            <div className="flex flex-wrap gap-2">
+              {COLORS.map((color) => (
+                <button
+                  key={color}
+                  type="button"
+                  aria-label={`Цвет ${color}`}
+                  aria-pressed={newTagColor === color}
+                  onClick={() => setNewTagColor(color)}
+                  className={cn(
+                    "size-8 rounded-full border-2 border-transparent transition-transform focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
+                    newTagColor === color &&
+                      "scale-110 border-foreground ring-2 ring-background",
+                  )}
+                  style={{ backgroundColor: color }}
+                />
+              ))}
+            </div>
+          </div>
+        </form>
+
+        <Separator />
+
+        <div>
+          <h4 className="mb-2 text-sm font-semibold">Существующие теги</h4>
+          {tags.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Теги ещё не созданы</p>
+          ) : (
+            <ul className="flex flex-col gap-1.5">
+              {tags.map((tag) => (
+                <li
+                  key={tag.id}
+                  className="flex items-center justify-between gap-3 rounded-md border py-1.5 pr-1.5 pl-3"
+                >
+                  <Badge
+                    className="border-transparent text-white"
+                    style={{ backgroundColor: tag.color }}
                   >
-                    ✕
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <div className={styles.formGroup}>
-              <label>Цвет тега</label>
-              <div className={styles.colorPicker}>
-                {COLORS.map((color) => (
-                  <button
-                    key={color}
-                    type="button"
-                    className={`${styles.colorOption} ${newTagColor === color ? styles.selected : ""}`}
-                    style={{ backgroundColor: color }}
-                    onClick={() => setNewTagColor(color)}
-                  />
-                ))}
-              </div>
-            </div>
-          </form>
-
-          <div className={styles.tagsList}>
-            <h4>Существующие теги</h4>
-            {tags.length === 0 ? (
-              <p className={styles.emptyTagsText}>Теги ещё не созданы</p>
-            ) : (
-              <div className={styles.tagsListItems}>
-                {tags.map((tag) => (
-                  <div key={tag.id} className={styles.tagListItem}>
-                    <span
-                      className={styles.tagPreview}
-                      style={{ backgroundColor: tag.color }}
-                    >
-                      {tag.name}
-                    </span>
-                    <div className={styles.tagListActions}>
-                      <button
-                        type="button"
-                        onClick={() => handleEdit(tag)}
-                        title="Редактировать"
-                      >
-                        ✏️
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onDeleteTag(tag.id)}
-                        title="Удалить"
-                      >
-                        🗑️
-                      </button>
-                    </div>
+                    {tag.name}
+                  </Badge>
+                  <div className="flex items-center gap-1">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => handleEdit(tag)}
+                        >
+                          <Pencil />
+                          <span className="sr-only">Редактировать</span>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Редактировать</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          className="hover:text-destructive"
+                          onClick={() => onDeleteTag(tag.id)}
+                        >
+                          <Trash2 />
+                          <span className="sr-only">Удалить</span>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Удалить</TooltipContent>
+                    </Tooltip>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className={styles.formActions}>
-            <button
-              type="button"
-              className={styles.submitButton}
-              onClick={onClose}
-            >
-              Готово
-            </button>
-          </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
-      </div>
-    </div>
+
+        <DialogFooter>
+          <Button
+            type="button"
+            size="lg"
+            onClick={() => {
+              reset();
+              onClose();
+            }}
+          >
+            Готово
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

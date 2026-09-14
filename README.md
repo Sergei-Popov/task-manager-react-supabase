@@ -18,7 +18,8 @@ React + Vite на фронтенде, свой Node API и PostgreSQL на бэ�
 ## Структура
 
 ```
-src/                 фронтенд (React)
+src/                 фронтенд (React + Tailwind + shadcn/ui)
+src/components/ui/   компоненты shadcn/ui (генерируются CLI, можно править)
 src/utils/api.js     клиент нашего API (fetch + cookie)
 server/src/          Express-приложение
 server/migrations/   SQL-миграции, применяются при старте API
@@ -55,6 +56,7 @@ npm run dev:all            # API на :3001 и Vite на :5173 в одном т�
 
 ```bash
 npm run lint                     # eslint для фронтенда и сервера
+npx shadcn@latest add <name>     # добавить ещё компонент shadcn/ui
 npm run build                    # сборка фронтенда в dist/
 psql "$DATABASE_URL"             # консоль БД (DATABASE_URL из .env)
 docker compose logs -f api       # логи API в Docker

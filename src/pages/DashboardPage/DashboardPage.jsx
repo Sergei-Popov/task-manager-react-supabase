@@ -1,6 +1,39 @@
 import { useState, useEffect } from "react";
-import styles from "./DashboardPage.module.css";
 import api from "../../utils/api.js";
+import { toast } from "sonner";
+import {
+  CalendarDays,
+  Columns3,
+  Inbox,
+  LayoutList,
+  Plus,
+  RefreshCw,
+  Search,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
+import {
+  SidebarInset,
+  SidebarProvider,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import ConfirmDialog from "../../components/ConfirmDialog.jsx";
+import ThemeToggle from "../../components/ThemeToggle.jsx";
 import {
   Sidebar,
   StatsGrid,
@@ -29,7 +62,7 @@ function DashboardPage() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
   const [filter, setFilter] = useState("all");
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [confirm, setConfirm] = useState(null); // диалог подтверждения
   const [isLoading, setIsLoading] = useState(true);
   const [userEmail, setUserEmail] = useState("");
   const [viewMode, setViewMode] = useState("list"); // "list" или "kanban"
@@ -117,8 +150,10 @@ function DashboardPage() {
       );
       setNewTask(INITIAL_TASK_STATE);
       setIsModalOpen(false);
+      toast.success("Задача создана");
     } catch (error) {
       console.error("Ошибка создания задачи:", error);
+      toast.error(error.message || "Не удалось создать задачу");
     } finally {
       setIsLoading(false);
     }
@@ -130,16 +165,33 @@ function DashboardPage() {
       setTasks((prev) => prev.map((t) => (t.id === id ? updatedTask : t)));
     } catch (error) {
       console.error("Ошибка обновления статуса:", error);
+      toast.error(error.message || "Не удалось обновить статус");
     }
   };
 
-  const deleteTask = async (id) => {
-    try {
-      await api.tasks.remove(id);
-      setTasks((prev) => prev.filter((task) => task.id !== id));
-    } catch (error) {
-      console.error("Ошибка удаления задачи:", error);
-    }
+  const deleteTask = (id) => {
+    const task = tasks.find((t) => t.id === id);
+    setConfirm({
+      open: true,
+      title: "Удалить задачу?",
+      description: task
+        ? `«${truncateText(task.text, 80)}» будет удалена без возможности восстановления.`
+        : "",
+      confirmLabel: "Удалить",
+      destructive: true,
+      onConfirm: async () => {
+        setConfirm(null);
+        try {
+          await api.tasks.remove(id);
+          setTasks((prev) => prev.filter((t) => t.id !== id));
+          if (selectedTask?.id === id) closeViewModal();
+          toast.success("Задача удалена");
+        } catch (error) {
+          console.error("Ошибка удаления задачи:", error);
+          toast.error(error.message || "Не удалось удалить задачу");
+        }
+      },
+    });
   };
 
   const openTaskView = (task) => {
@@ -185,8 +237,10 @@ function DashboardPage() {
       );
 
       closeViewModal();
+      toast.success("Изменения сохранены");
     } catch (error) {
       console.error("Ошибка обновления задачи:", error);
+      toast.error(error.message || "Не удалось сохранить задачу");
     } finally {
       setIsLoading(false);
     }
@@ -252,8 +306,10 @@ function DashboardPage() {
       });
       setCategories((prev) => [...prev, category]);
       closeCategoryModal();
+      toast.success("Категория создана");
     } catch (error) {
       console.error("Ошибка создания категории:", error);
+      toast.error(error.message || "Не удалось создать категорию");
     }
   };
 
@@ -270,30 +326,37 @@ function DashboardPage() {
         prev.map((cat) => (cat.id === selectedCategory.id ? category : cat)),
       );
       closeCategoryModal();
+      toast.success("Категория обновлена");
     } catch (error) {
       console.error("Ошибка обновления категории:", error);
+      toast.error(error.message || "Не удалось обновить категорию");
     }
   };
 
-  const handleDeleteCategory = async (categoryId) => {
-    if (
-      !window.confirm(
-        "Удалить эту категорию? Задачи с этой категорией останутся, но будут отображаться без категории.",
-      )
-    ) {
-      return;
-    }
-
-    try {
-      await api.categories.remove(categoryId);
-      setCategories((prev) => prev.filter((cat) => cat.id !== categoryId));
-
-      if (filter === categoryId) {
-        setFilter("all");
-      }
-    } catch (error) {
-      console.error("Ошибка удаления категории:", error);
-    }
+  const handleDeleteCategory = (categoryId) => {
+    const category = categories.find((c) => c.id === categoryId);
+    setConfirm({
+      open: true,
+      title: `Удалить категорию «${category?.name || ""}»?`,
+      description:
+        "Задачи с этой категорией останутся, но будут отображаться без категории.",
+      confirmLabel: "Удалить",
+      destructive: true,
+      onConfirm: async () => {
+        setConfirm(null);
+        try {
+          await api.categories.remove(categoryId);
+          setCategories((prev) => prev.filter((cat) => cat.id !== categoryId));
+          if (filter === categoryId) {
+            setFilter("all");
+          }
+          toast.success("Категория удалена");
+        } catch (error) {
+          console.error("Ошибка удаления категории:", error);
+          toast.error(error.message || "Не удалось удалить категорию");
+        }
+      },
+    });
   };
 
   const openCreateCategoryModal = () => {
@@ -322,8 +385,10 @@ function DashboardPage() {
     try {
       const tag = await api.tags.create({ name, color });
       setTags((prev) => [...prev, tag]);
+      toast.success("Тег создан");
     } catch (error) {
       console.error("Ошибка создания тега:", error);
+      toast.error(error.message || "Не удалось создать тег");
     }
   };
 
@@ -331,20 +396,41 @@ function DashboardPage() {
     try {
       const tag = await api.tags.update(tagId, { name, color });
       setTags((prev) => prev.map((t) => (t.id === tagId ? tag : t)));
+      toast.success("Тег обновлён");
     } catch (error) {
       console.error("Ошибка обновления тега:", error);
+      toast.error(error.message || "Не удалось обновить тег");
     }
   };
 
-  const handleDeleteTag = async (tagId) => {
-    if (!window.confirm("Удалить этот тег?")) return;
-
-    try {
-      await api.tags.remove(tagId);
-      setTags((prev) => prev.filter((tag) => tag.id !== tagId));
-    } catch (error) {
-      console.error("Ошибка удаления тега:", error);
-    }
+  const handleDeleteTag = (tagId) => {
+    const tag = tags.find((t) => t.id === tagId);
+    setConfirm({
+      open: true,
+      title: `Удалить тег «${tag?.name || ""}»?`,
+      description: "Тег будет снят со всех задач.",
+      confirmLabel: "Удалить",
+      destructive: true,
+      onConfirm: async () => {
+        setConfirm(null);
+        try {
+          await api.tags.remove(tagId);
+          setTags((prev) => prev.filter((t) => t.id !== tagId));
+          setTasks((prev) =>
+            prev.map((task) => ({
+              ...task,
+              task_tags: (task.task_tags || []).filter(
+                (tt) => tt.tag_id !== tagId,
+              ),
+            })),
+          );
+          toast.success("Тег удалён");
+        } catch (error) {
+          console.error("Ошибка удаления тега:", error);
+          toast.error(error.message || "Не удалось удалить тег");
+        }
+      },
+    });
   };
 
   const getCategoryInfo = (categoryId) => {
@@ -367,33 +453,26 @@ function DashboardPage() {
     ).length,
   };
 
+  const VIEWS = [
+    { id: "list", label: "Список", icon: LayoutList },
+    { id: "kanban", label: "Канбан", icon: Columns3 },
+    { id: "calendar", label: "Календарь", icon: CalendarDays },
+  ];
+
+  const todayLabel = new Date().toLocaleDateString("ru-RU", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+
   return (
-    <div className={styles.dashboard}>
-      {/* Mobile Menu Button */}
-      <button
-        className={styles.mobileMenuButton}
-        onClick={() => setIsSidebarOpen(true)}
-      >
-        ☰
-      </button>
-
-      {/* Mobile Refresh Button */}
-      <button
-        className={styles.mobileRefreshButton}
-        onClick={fetchTasks}
-        disabled={isLoading}
-        title="Обновить задачи"
-      >
-        {isLoading ? "⏳" : "🔄"}
-      </button>
-
+    <SidebarProvider>
       <Sidebar
         tasks={tasks}
         categories={categories}
         filter={filter}
         setFilter={setFilter}
-        isSidebarOpen={isSidebarOpen}
-        setIsSidebarOpen={setIsSidebarOpen}
         userEmail={userEmail}
         openCreateCategoryModal={openCreateCategoryModal}
         openEditCategoryModal={openEditCategoryModal}
@@ -402,97 +481,123 @@ function DashboardPage() {
         stats={stats}
       />
 
-      {/* Main Content */}
-      <main className={styles.main}>
-        <header className={styles.header}>
-          <div className={styles.headerLeft}>
-            <h1 className={styles.title}>Мои задачи</h1>
-            <p className={styles.subtitle}>
-              {new Date().toLocaleDateString("ru-RU", {
-                weekday: "long",
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              })}
+      <SidebarInset className="min-w-0">
+        <header className="sticky top-0 z-20 flex flex-wrap items-center gap-3 border-b bg-background/90 px-4 py-3 backdrop-blur sm:px-6">
+          <SidebarTrigger className="-ml-1" />
+          <Separator orientation="vertical" className="hidden h-6 sm:block" />
+          <div className="min-w-0">
+            <h1 className="text-xl font-bold leading-tight">Мои задачи</h1>
+            <p className="truncate text-xs text-muted-foreground capitalize">
+              {todayLabel}
             </p>
           </div>
-          <div className={styles.headerActions}>
-            <div className={styles.searchWrapper}>
-              <span className={styles.searchIcon}>🔍</span>
-              <input
-                type="text"
-                className={styles.searchInput}
-                placeholder="Поиск задач..."
+
+          <div className="ml-auto flex items-center gap-2">
+            <ThemeToggle />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={fetchTasks}
+                  disabled={isLoading}
+                  aria-label="Обновить задачи"
+                >
+                  <RefreshCw
+                    className={isLoading ? "animate-spin" : undefined}
+                  />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Обновить</TooltipContent>
+            </Tooltip>
+            <Button onClick={() => setIsModalOpen(true)}>
+              <Plus data-icon="inline-start" />
+              <span className="hidden sm:inline">Новая задача</span>
+              <span className="sm:hidden">Задача</span>
+            </Button>
+          </div>
+
+          <div className="flex w-full items-center gap-3 sm:w-auto sm:flex-1 sm:justify-end lg:order-none">
+            <div className="relative w-full sm:max-w-xs">
+              <Search
+                className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
+                aria-hidden="true"
+              />
+              <Input
+                type="search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Поиск задач…"
+                aria-label="Поиск задач"
+                className="pl-8"
               />
-              {searchQuery && (
-                <button
-                  className={styles.searchClear}
-                  onClick={() => setSearchQuery("")}
-                >
-                  ✕
-                </button>
-              )}
             </div>
-            <div className={styles.viewToggle}>
-              <button
-                className={`${styles.viewToggleBtn} ${viewMode === "list" ? styles.active : ""}`}
-                onClick={() => setViewMode("list")}
-                title="Список"
-              >
-                ☰
-              </button>
-              <button
-                className={`${styles.viewToggleBtn} ${viewMode === "kanban" ? styles.active : ""}`}
-                onClick={() => setViewMode("kanban")}
-                title="Канбан"
-              >
-                ▦
-              </button>
-              <button
-                className={`${styles.viewToggleBtn} ${viewMode === "calendar" ? styles.active : ""}`}
-                onClick={() => setViewMode("calendar")}
-                title="Календарь"
-              >
-                📅
-              </button>
-            </div>
-            <button
-              className={styles.addButton}
-              onClick={() => setIsModalOpen(true)}
+            <ToggleGroup
+              type="single"
+              variant="outline"
+              value={viewMode}
+              onValueChange={(value) => value && setViewMode(value)}
+              aria-label="Режим просмотра"
             >
-              <span>+</span> Новая задача
-            </button>
+              {VIEWS.map(({ id, label, icon }) => {
+                const Icon = icon;
+                return (
+                  <Tooltip key={id}>
+                    <TooltipTrigger asChild>
+                      <ToggleGroupItem value={id} aria-label={label}>
+                        <Icon />
+                      </ToggleGroupItem>
+                    </TooltipTrigger>
+                    <TooltipContent>{label}</TooltipContent>
+                  </Tooltip>
+                );
+              })}
+            </ToggleGroup>
           </div>
         </header>
 
-        <StatsGrid stats={stats} />
+        <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
+          <StatsGrid stats={stats} />
 
-        {/* Tasks List View */}
-        {viewMode === "list" && (
-          <div className={styles.tasksList}>
-            {isLoading ? (
-              <div className={styles.emptyState}>
-                <span className={styles.emptyIcon}>⏳</span>
-                <h3>Загрузка задач...</h3>
-              </div>
-            ) : filteredTasks.length === 0 ? (
-              <div className={styles.emptyState}>
-                <span className={styles.emptyIcon}>📝</span>
-                <h3>Нет задач</h3>
-                <p>Создайте новую задачу, чтобы начать</p>
-              </div>
-            ) : (
-              filteredTasks.map((task) => {
-                const timeRemaining = getTimeRemaining(task.deadline);
-                const category = getCategoryInfo(task.category);
-                return (
+          {viewMode === "list" && (
+            <section aria-label="Список задач" className="flex flex-col gap-3">
+              {isLoading && tasks.length === 0 ? (
+                <>
+                  <Skeleton className="h-28 w-full" />
+                  <Skeleton className="h-28 w-full" />
+                  <Skeleton className="h-28 w-full" />
+                </>
+              ) : filteredTasks.length === 0 ? (
+                <Empty className="border border-dashed">
+                  <EmptyHeader>
+                    <EmptyMedia variant="icon">
+                      <Inbox />
+                    </EmptyMedia>
+                    <EmptyTitle>
+                      {tasks.length === 0
+                        ? "Задач пока нет"
+                        : "Ничего не найдено"}
+                    </EmptyTitle>
+                    <EmptyDescription>
+                      {tasks.length === 0
+                        ? "Создайте первую задачу, чтобы начать планировать."
+                        : "Попробуйте изменить фильтр или поисковый запрос."}
+                    </EmptyDescription>
+                  </EmptyHeader>
+                  {tasks.length === 0 && (
+                    <Button onClick={() => setIsModalOpen(true)}>
+                      <Plus data-icon="inline-start" />
+                      Новая задача
+                    </Button>
+                  )}
+                </Empty>
+              ) : (
+                filteredTasks.map((task) => (
                   <TaskCard
                     key={task.id}
                     task={task}
-                    category={category}
-                    timeRemaining={timeRemaining}
+                    category={getCategoryInfo(task.category)}
+                    timeRemaining={getTimeRemaining(task.deadline)}
                     onStatusChange={updateTaskStatus}
                     onView={openTaskView}
                     onEdit={openEditMode}
@@ -500,37 +605,38 @@ function DashboardPage() {
                     truncateText={truncateText}
                     tags={tags}
                   />
-                );
-              })
-            )}
-          </div>
-        )}
+                ))
+              )}
+            </section>
+          )}
 
-        {/* Kanban View */}
-        {viewMode === "kanban" && (
-          <KanbanBoard
-            tasks={filteredTasks}
-            isLoading={isLoading}
-            onStatusChange={updateTaskStatus}
-            onView={openTaskView}
-            onEdit={openEditMode}
-            onDelete={deleteTask}
-            getCategoryInfo={getCategoryInfo}
-            getTimeRemaining={getTimeRemaining}
-            truncateText={truncateText}
-            tags={tags}
-          />
-        )}
+          {viewMode === "kanban" && (
+            <KanbanBoard
+              tasks={filteredTasks}
+              isLoading={isLoading && tasks.length === 0}
+              onStatusChange={updateTaskStatus}
+              onView={openTaskView}
+              onEdit={openEditMode}
+              onDelete={deleteTask}
+              getCategoryInfo={getCategoryInfo}
+              getTimeRemaining={getTimeRemaining}
+              truncateText={truncateText}
+              tags={tags}
+            />
+          )}
 
-        {/* Calendar View */}
-        {viewMode === "calendar" && (
-          <CalendarView tasks={tasks} onView={openTaskView} />
-        )}
-      </main>
+          {viewMode === "calendar" && (
+            <CalendarView tasks={filteredTasks} onView={openTaskView} />
+          )}
+        </div>
+      </SidebarInset>
 
       <TaskModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={() => {
+          setIsModalOpen(false);
+          setNewTask(INITIAL_TASK_STATE);
+        }}
         newTask={newTask}
         setNewTask={setNewTask}
         categories={categories}
@@ -575,7 +681,12 @@ function DashboardPage() {
         onDeleteTag={handleDeleteTag}
         isLoading={isLoading}
       />
-    </div>
+
+      <ConfirmDialog
+        state={confirm}
+        onOpenChange={(open) => !open && setConfirm(null)}
+      />
+    </SidebarProvider>
   );
 }
 

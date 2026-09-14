@@ -1,307 +1,148 @@
-import { useState, useEffect, useRef } from "react";
-import styles from "./DateTimePicker.module.css";
+import { useState } from "react";
+import { ru } from "date-fns/locale";
+import { CalendarIcon, Clock } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 
-const MONTHS = [
-  "Январь",
-  "Февраль",
-  "Март",
-  "Апрель",
-  "Май",
-  "Июнь",
-  "Июль",
-  "Август",
-  "Сентябрь",
-  "Октябрь",
-  "Ноябрь",
-  "Декабрь",
-];
+const pad = (n) => String(n).padStart(2, "0");
 
-const WEEKDAYS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
+// Локальная дата в ISO-строку с часовым поясом: 2026-09-20T18:00:00+05:00
+function toLocalIso(date, hours, minutes) {
+  const offset = -date.getTimezoneOffset();
+  const sign = offset >= 0 ? "+" : "-";
+  const abs = Math.abs(offset);
+  const tz = `${sign}${pad(Math.floor(abs / 60))}:${pad(abs % 60)}`;
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
+    date.getDate(),
+  )}T${pad(hours)}:${pad(minutes)}:00${tz}`;
+}
+
+const HOURS = Array.from({ length: 24 }, (_, i) => pad(i));
+const MINUTES = Array.from({ length: 12 }, (_, i) => pad(i * 5));
 
 function DateTimePicker({
   value,
   onChange,
   placeholder = "Выберите дату и время",
+  id,
 }) {
-  const initialDate = value ? new Date(value) : null;
-  const [isOpen, setIsOpen] = useState(false);
-  const [currentMonth, setCurrentMonth] = useState(() =>
-    initialDate
-      ? new Date(initialDate.getFullYear(), initialDate.getMonth(), 1)
-      : new Date(),
-  );
-  const [selectedDate, setSelectedDate] = useState(initialDate);
-  const [selectedTime, setSelectedTime] = useState(() =>
-    initialDate
-      ? { hours: initialDate.getHours(), minutes: initialDate.getMinutes() }
-      : { hours: 12, minutes: 0 },
-  );
-  const [syncedValue, setSyncedValue] = useState(value);
-  const pickerRef = useRef(null);
+  const [open, setOpen] = useState(false);
 
-  // Синхронизируем внутреннее состояние с внешним value прямо во время
-  // рендера (рекомендованный React паттерн вместо setState внутри эффекта).
-  if (value !== syncedValue) {
-    setSyncedValue(value);
-    if (value) {
-      const date = new Date(value);
-      setSelectedDate(date);
-      setSelectedTime({
-        hours: date.getHours(),
-        minutes: date.getMinutes(),
-      });
-      setCurrentMonth(new Date(date.getFullYear(), date.getMonth(), 1));
-    }
-  }
+  const current = value ? new Date(value) : null;
+  const hours = current ? current.getHours() : 12;
+  const minutes = current ? current.getMinutes() : 0;
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (pickerRef.current && !pickerRef.current.contains(event.target)) {
-        setIsOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const getDaysInMonth = (date) => {
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const daysInMonth = lastDay.getDate();
-
-    let startDay = firstDay.getDay() - 1;
-    if (startDay < 0) startDay = 6;
-
-    const days = [];
-
-    // Дни предыдущего месяца
-    const prevMonthLastDay = new Date(year, month, 0).getDate();
-    for (let i = startDay - 1; i >= 0; i--) {
-      days.push({
-        day: prevMonthLastDay - i,
-        isCurrentMonth: false,
-        date: new Date(year, month - 1, prevMonthLastDay - i),
-      });
-    }
-
-    // Дни текущего месяца
-    for (let i = 1; i <= daysInMonth; i++) {
-      days.push({
-        day: i,
-        isCurrentMonth: true,
-        date: new Date(year, month, i),
-      });
-    }
-
-    // Дни следующего месяца
-    const remainingDays = 42 - days.length;
-    for (let i = 1; i <= remainingDays; i++) {
-      days.push({
-        day: i,
-        isCurrentMonth: false,
-        date: new Date(year, month + 1, i),
-      });
-    }
-
-    return days;
+  const emit = (date, h, m) => {
+    if (!date) return;
+    onChange(toLocalIso(date, h, m));
   };
 
-  const handlePrevMonth = () => {
-    setCurrentMonth(
-      new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1),
-    );
+  const handleSelectDay = (day) => {
+    if (!day) return;
+    emit(day, hours, minutes);
   };
 
-  const handleNextMonth = () => {
-    setCurrentMonth(
-      new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1),
-    );
-  };
+  const label = current
+    ? current.toLocaleString("ru-RU", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : placeholder;
 
-  const handleDateSelect = (dateInfo) => {
-    const newDate = new Date(
-      dateInfo.date.getFullYear(),
-      dateInfo.date.getMonth(),
-      dateInfo.date.getDate(),
-      selectedTime.hours,
-      selectedTime.minutes,
-    );
-    setSelectedDate(newDate);
-    setCurrentMonth(
-      new Date(dateInfo.date.getFullYear(), dateInfo.date.getMonth(), 1),
-    );
-    updateValue(newDate);
-  };
-
-  const handleTimeChange = (type, value) => {
-    const newTime = { ...selectedTime, [type]: parseInt(value) };
-    setSelectedTime(newTime);
-
-    if (selectedDate) {
-      const newDate = new Date(
-        selectedDate.getFullYear(),
-        selectedDate.getMonth(),
-        selectedDate.getDate(),
-        newTime.hours,
-        newTime.minutes,
-      );
-      setSelectedDate(newDate);
-      updateValue(newDate);
-    }
-  };
-
-  const updateValue = (date) => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    const hours = String(date.getHours()).padStart(2, "0");
-    const minutes = String(date.getMinutes()).padStart(2, "0");
-
-    // Получаем смещение часового пояса в формате +HH:MM или -HH:MM
-    const timezoneOffset = -date.getTimezoneOffset();
-    const offsetSign = timezoneOffset >= 0 ? "+" : "-";
-    const offsetHours = String(
-      Math.floor(Math.abs(timezoneOffset) / 60),
-    ).padStart(2, "0");
-    const offsetMinutes = String(Math.abs(timezoneOffset) % 60).padStart(
-      2,
-      "0",
-    );
-    const timezone = `${offsetSign}${offsetHours}:${offsetMinutes}`;
-
-    onChange(`${year}-${month}-${day}T${hours}:${minutes}:00${timezone}`);
-  };
-
-  const isToday = (date) => {
-    const today = new Date();
-    return (
-      date.getDate() === today.getDate() &&
-      date.getMonth() === today.getMonth() &&
-      date.getFullYear() === today.getFullYear()
-    );
-  };
-
-  const isSelected = (date) => {
-    if (!selectedDate) return false;
-    return (
-      date.getDate() === selectedDate.getDate() &&
-      date.getMonth() === selectedDate.getMonth() &&
-      date.getFullYear() === selectedDate.getFullYear()
-    );
-  };
-
-  const formatDisplayValue = () => {
-    if (!selectedDate) return "";
-    return selectedDate.toLocaleString("ru-RU", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  const days = getDaysInMonth(currentMonth);
+  // Если минуты не кратны 5 (старые данные), добавляем их в список
+  const minuteOptions = MINUTES.includes(pad(minutes))
+    ? MINUTES
+    : [...MINUTES, pad(minutes)].sort();
 
   return (
-    <div className={styles.dateTimePicker} ref={pickerRef}>
-      <div
-        className={`${styles.input} ${isOpen ? styles.focused : ""}`}
-        onClick={() => setIsOpen(!isOpen)}
-      >
-        <span className={value ? styles.value : styles.placeholder}>
-          {value ? formatDisplayValue() : placeholder}
-        </span>
-        <span className={styles.icon}>📅</span>
-      </div>
-
-      {isOpen && (
-        <div className={styles.dropdown}>
-          <div className={styles.calendar}>
-            <div className={styles.calendarHeader}>
-              <button
-                type="button"
-                className={styles.navButton}
-                onClick={handlePrevMonth}
-              >
-                ‹
-              </button>
-              <span className={styles.monthYear}>
-                {MONTHS[currentMonth.getMonth()]} {currentMonth.getFullYear()}
-              </span>
-              <button
-                type="button"
-                className={styles.navButton}
-                onClick={handleNextMonth}
-              >
-                ›
-              </button>
-            </div>
-
-            <div className={styles.weekdays}>
-              {WEEKDAYS.map((day) => (
-                <div key={day} className={styles.weekday}>
-                  {day}
-                </div>
-              ))}
-            </div>
-
-            <div className={styles.days}>
-              {days.map((dayInfo, index) => (
-                <button
-                  key={index}
-                  type="button"
-                  className={`${styles.day} ${!dayInfo.isCurrentMonth ? styles.otherMonth : ""} ${isToday(dayInfo.date) ? styles.today : ""} ${isSelected(dayInfo.date) ? styles.selected : ""}`}
-                  onClick={() => handleDateSelect(dayInfo)}
-                >
-                  {dayInfo.day}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className={styles.timePicker}>
-            <span className={styles.timeLabel}>🕐 Время:</span>
-            <div className={styles.timeInputs}>
-              <select
-                className={styles.timeSelect}
-                value={selectedTime.hours}
-                onChange={(e) => handleTimeChange("hours", e.target.value)}
-              >
-                {Array.from({ length: 24 }, (_, i) => (
-                  <option key={i} value={i}>
-                    {String(i).padStart(2, "0")}
-                  </option>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          id={id}
+          type="button"
+          variant="outline"
+          className={cn(
+            "h-9 w-full justify-start font-normal",
+            !current && "text-muted-foreground",
+          )}
+        >
+          <CalendarIcon data-icon="inline-start" />
+          <span className="truncate">{label}</span>
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <Calendar
+          mode="single"
+          locale={ru}
+          selected={current || undefined}
+          defaultMonth={current || undefined}
+          onSelect={handleSelectDay}
+          weekStartsOn={1}
+        />
+        <div className="flex items-center gap-2 border-t p-3">
+          <Clock className="size-4 text-muted-foreground" aria-hidden="true" />
+          <span className="text-sm text-muted-foreground">Время</span>
+          <div className="ml-auto flex items-center gap-1.5">
+            <Select
+              value={pad(hours)}
+              onValueChange={(v) =>
+                emit(current || new Date(), Number(v), minutes)
+              }
+            >
+              <SelectTrigger className="w-[4.5rem]" aria-label="Часы">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="max-h-60">
+                {HOURS.map((h) => (
+                  <SelectItem key={h} value={h}>
+                    {h}
+                  </SelectItem>
                 ))}
-              </select>
-              <span className={styles.timeSeparator}>:</span>
-              <select
-                className={styles.timeSelect}
-                value={selectedTime.minutes}
-                onChange={(e) => handleTimeChange("minutes", e.target.value)}
-              >
-                {Array.from({ length: 60 }, (_, i) => (
-                  <option key={i} value={i}>
-                    {String(i).padStart(2, "0")}
-                  </option>
+              </SelectContent>
+            </Select>
+            <span className="text-muted-foreground">:</span>
+            <Select
+              value={pad(minutes)}
+              onValueChange={(v) =>
+                emit(current || new Date(), hours, Number(v))
+              }
+            >
+              <SelectTrigger className="w-[4.5rem]" aria-label="Минуты">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="max-h-60">
+                {minuteOptions.map((m) => (
+                  <SelectItem key={m} value={m}>
+                    {m}
+                  </SelectItem>
                 ))}
-              </select>
-            </div>
+              </SelectContent>
+            </Select>
           </div>
-
-          <button
-            type="button"
-            className={styles.confirmButton}
-            onClick={() => setIsOpen(false)}
-          >
-            Готово
-          </button>
         </div>
-      )}
-    </div>
+        <div className="flex justify-end border-t p-2">
+          <Button type="button" size="sm" onClick={() => setOpen(false)}>
+            Готово
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 

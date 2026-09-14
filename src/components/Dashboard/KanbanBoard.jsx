@@ -3,13 +3,17 @@ import {
   DndContext,
   DragOverlay,
   closestCorners,
+  KeyboardSensor,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import styles from "../../pages/DashboardPage/DashboardPage.module.css";
+import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
+import { Card } from "@/components/ui/card";
 import { TASK_STATUSES } from "./constants.js";
 import KanbanColumn from "./KanbanColumn.jsx";
+import { KanbanCardBody } from "./KanbanCard.jsx";
 
 function KanbanBoard({
   tasks,
@@ -26,73 +30,33 @@ function KanbanBoard({
   const [activeTask, setActiveTask] = useState(null);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 150, tolerance: 8 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
     }),
   );
 
-  const handleDragStart = (event) => {
-    const { active } = event;
-    const task = tasks.find((t) => t.id === active.id);
-    setActiveTask(task);
+  // Статус, над которым находится перетаскиваемая карточка:
+  // либо сама колонка, либо статус карточки, над которой зависли
+  const resolveStatus = (overId) => {
+    if (Object.keys(TASK_STATUSES).includes(overId)) return overId;
+    return tasks.find((t) => t.id === overId)?.status;
   };
 
-  const handleDragEnd = (event) => {
-    const { active, over } = event;
+  const handleDragStart = ({ active }) => {
+    setActiveTask(tasks.find((t) => t.id === active.id) || null);
+  };
+
+  const handleDragEnd = ({ active, over }) => {
     setActiveTask(null);
-
     if (!over) return;
-
-    const taskId = active.id;
-    const overId = over.id;
-
-    // Проверяем, является ли overId статусом колонки
-    const isOverColumn = Object.keys(TASK_STATUSES).includes(overId);
-
-    let newStatus;
-    if (isOverColumn) {
-      newStatus = overId;
-    } else {
-      // Если бросили на карточку, берём статус этой карточки
-      const overTask = tasks.find((t) => t.id === overId);
-      if (overTask) {
-        newStatus = overTask.status;
-      }
-    }
-
-    if (newStatus) {
-      const task = tasks.find((t) => t.id === taskId);
-      if (task && task.status !== newStatus) {
-        onStatusChange(taskId, newStatus);
-      }
-    }
-  };
-
-  const handleDragOver = (event) => {
-    const { active, over } = event;
-    if (!over) return;
-
-    const activeTask = tasks.find((t) => t.id === active.id);
-    if (!activeTask) return;
-
-    // Определяем новый статус
-    const isOverColumn = Object.keys(TASK_STATUSES).includes(over.id);
-    let newStatus;
-
-    if (isOverColumn) {
-      newStatus = over.id;
-    } else {
-      const overTask = tasks.find((t) => t.id === over.id);
-      if (overTask) {
-        newStatus = overTask.status;
-      }
-    }
-
-    // Визуальное обновление при перетаскивании между колонками
-    if (newStatus && activeTask.status !== newStatus) {
-      // Можно добавить визуальную обратную связь здесь
+    const newStatus = resolveStatus(over.id);
+    const task = tasks.find((t) => t.id === active.id);
+    if (newStatus && task && task.status !== newStatus) {
+      onStatusChange(task.id, newStatus);
     }
   };
 
@@ -102,56 +66,41 @@ function KanbanBoard({
       collisionDetection={closestCorners}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
-      onDragOver={handleDragOver}
+      onDragCancel={() => setActiveTask(null)}
     >
-      <div className={styles.kanbanBoard}>
-        {Object.values(TASK_STATUSES).map((status) => {
-          const columnTasks = tasks.filter((task) => task.status === status.id);
-          return (
-            <KanbanColumn
-              key={status.id}
-              status={status}
-              tasks={columnTasks}
-              isLoading={isLoading}
-              onView={onView}
-              onEdit={onEdit}
-              onDelete={onDelete}
-              getCategoryInfo={getCategoryInfo}
-              getTimeRemaining={getTimeRemaining}
-              truncateText={truncateText}
-              tags={tags}
-            />
-          );
-        })}
+      <div className="grid gap-4 lg:grid-cols-3">
+        {Object.values(TASK_STATUSES).map((status) => (
+          <KanbanColumn
+            key={status.id}
+            status={status}
+            tasks={tasks.filter((task) => task.status === status.id)}
+            isLoading={isLoading}
+            onView={onView}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            getCategoryInfo={getCategoryInfo}
+            getTimeRemaining={getTimeRemaining}
+            truncateText={truncateText}
+            tags={tags}
+          />
+        ))}
       </div>
 
       <DragOverlay dropAnimation={null}>
         {activeTask ? (
-          <div
-            className={`${styles.kanbanCard} ${styles.dragging}`}
+          <Card
+            size="sm"
+            className="gap-2 border-l-4 p-3 shadow-xl ring-2 ring-primary/40"
             style={{ borderLeftColor: activeTask.color }}
           >
-            <div className={styles.kanbanCardHeader}>
-              <span className={styles.kanbanCardCategory}>
-                {getCategoryInfo(activeTask.category).icon}{" "}
-                {getCategoryInfo(activeTask.category).name}
-              </span>
-            </div>
-            <p className={styles.kanbanCardText}>
-              {truncateText(activeTask.text, 100)}
-            </p>
-            <div className={styles.kanbanCardFooter}>
-              <span
-                className={`${styles.kanbanCardDeadline} ${
-                  getTimeRemaining(activeTask.deadline).isOverdue
-                    ? styles.overdue
-                    : ""
-                }`}
-              >
-                🕐 {getTimeRemaining(activeTask.deadline).text}
-              </span>
-            </div>
-          </div>
+            <KanbanCardBody
+              task={activeTask}
+              category={getCategoryInfo(activeTask.category)}
+              timeRemaining={getTimeRemaining(activeTask.deadline)}
+              truncateText={truncateText}
+              tags={tags}
+            />
+          </Card>
         ) : null}
       </DragOverlay>
     </DndContext>
