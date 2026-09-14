@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import ThemeToggle from "@/components/ThemeToggle.jsx";
+import previewImage from "@/assets/preview.png";
 
 const FEATURES = [
   {
@@ -252,7 +253,7 @@ function LandingPage() {
           />
           <div className="relative mx-auto max-w-5xl">
             <img
-              src="/preview.png"
+              src={previewImage}
               alt="Скриншот дашборда «Мои задачи»"
               width={1440}
               height={900}
